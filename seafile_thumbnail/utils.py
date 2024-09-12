@@ -72,10 +72,6 @@ def get_inner_path(repo_id, file_id, file_name, file_type=None):
     return inner_path
 
 
-def get_share_link_thumbnail_src(token, size, path):
-    return posixpath.join("thumbnail", token, str(size), path.lstrip('/'))
-
-
 def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
     """ Return the real path of a file.
 
@@ -118,3 +114,6 @@ def cache_check(request, info):
 
 def get_thumbnail_src(repo_id, size, path):
     return posixpath.join("thumbnail", repo_id, str(size), path.lstrip('/'))
+
+def get_share_link_thumbnail_src(token, size, path):
+    return posixpath.join("thumbnail", token, str(size), path.lstrip('/'))

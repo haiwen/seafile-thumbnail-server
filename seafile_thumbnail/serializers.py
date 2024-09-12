@@ -9,6 +9,7 @@ from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.seahub_db import SeahubDB
 from seafile_thumbnail.utils import session_require, get_file_type_and_ext
 from seafile_thumbnail.utils import get_real_path_by_fs_and_req_path
+from seafile_thumbnail.seahub_api import jwt_permission_check
 from seaserv import get_repo, get_file_id_by_path, seafile_api
 
 dj_settings.configure(SECRET_KEY=settings.SEAHUB_WEB_SECRET_KEY)
@@ -107,7 +108,6 @@ class ThumbnailSerializer(object):
             token = match.group('token')
             req_path = self.request.query_dict['path'][0]
             size = self.request.query_dict['size'][0]
-
             if not size:
                 size = settings.THUMBNAIL_DEFAULT_SIZE
             if not req_path or '../' in req_path:
@@ -171,3 +171,11 @@ class ThumbnailSerializer(object):
         if not username:
             raise AssertionError(400, 'django session invalid.')
 
+        self.permission_check()
+
+    def permission_check(self):
+        permission = jwt_permission_check(self.session_data['username'], self.params['repo_id'], self.params['file_path'])
+        print(permission, 'return permission-----')
+        if not permission:
+            err_msg = "Permission denied."
+            raise AssertionError(400, err_msg)

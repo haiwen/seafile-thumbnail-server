@@ -1,18 +1,21 @@
 import logging
 import os
 import tempfile
+import asyncio
 import timeit
 import zipfile
 import urllib.request, urllib.error, urllib.parse
 from io import BytesIO
 from fitz import open as fitz_open
 from PIL import Image
+from pillow_heif import register_heif_opener
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_inner_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, EMPTY_BYTES
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
+from seafile_thumbnail.task_queue import thumbnail_task_manager
 
 from seaserv import get_repo, get_file_size, seafile_api
 
@@ -22,21 +25,19 @@ except:
     from urllib.request import urlretrieve
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 XMIND_IMAGE_SIZE = 1024
+register_heif_opener()
 
 
 # =================Thumbnail================
 class Thumbnail(object):
     def __init__(self, **info):
         self.__dict__.update(info)
+        self.task_id = None
         self.body = EMPTY_BYTES
         self.get()
+        self.handle_image()
 
     def get(self):
         if os.path.exists(self.thumbnail_path):
@@ -89,17 +90,14 @@ class Thumbnail(object):
 
         return image
 
+    def task_is_done(self):
+        return thumbnail_task_manager.query_status(self.task_id)
 
-    # def handle_image(self):
-    #
-    #     task_id = self.task_manage.add_xx_task()
-    #
-    #     while True:
-    #
-    #         if self.task_manager.query(task_id) == 'true':
-    #             pass
-
-
+    def handle_image(self):
+        if self.task_id is not None:
+            while True:
+                if thumbnail_task_manager.query_status(self.task_id):
+                    break
 
     def generate_thumbnail(self):
         """ generate and save thumbnail if not exist
@@ -123,19 +121,23 @@ class Thumbnail(object):
         if self.file_type == VIDEO:
             # video thumbnails
             if ENABLE_VIDEO_THUMBNAIL:
-                self.create_video_thumbnails(repo, file_id, path, size,
-                                             thumbnail_file, file_size)
+                task_id = thumbnail_task_manager.add_video_task(self.create_video_thumbnails, repo, file_id, path, size,
+                                                                thumbnail_file, file_size)
+                self.task_id = task_id
             else:
                 raise AssertionError(400, 'not configured.')
             return
         if self.file_type == PDF:
             # pdf thumbnails
-            self.create_pdf_thumbnails(repo, file_id, path, size,
-                                       thumbnail_file, file_size)
+            task_id = thumbnail_task_manager.add_pdf_create_task(self.create_pdf_thumbnails, repo, file_id, path,
+                                                                 size, thumbnail_file, file_size)
+            self.task_id = task_id
             return
 
         if self.file_type == XMIND:
-            self.extract_xmind_image(repo_id, size)
+            # self.extract_xmind_image(repo_id, size)
+            task_id = thumbnail_task_manager.add_xmind_create_task(self.extract_xmind_image, repo_id, size)
+            self.task_id = task_id
             return
 
         # image thumbnails
@@ -143,10 +145,16 @@ class Thumbnail(object):
             raise AssertionError(400, 'file_size invalid.')
 
         if self.file_ext.lower() == 'psd':
-            self.create_psd_thumbnails(repo, file_id, path, size,
-                                       thumbnail_file, file_size)
+            task_id = thumbnail_task_manager.add_image_creat_task(self.create_psd_thumbnails, repo, file_id, path,
+                                                                  size, thumbnail_file)
+            self.task_id = task_id
             return
 
+        task_id = thumbnail_task_manager.add_image_creat_task(self.create_image_thumbnail, repo_id, file_id,
+                                                              thumbnail_file, file_name, size)
+        self.task_id = task_id
+
+    def create_image_thumbnail(self, repo_id, file_id, thumbnail_file, file_name, size):
         # image thumbnail
         inner_path = get_inner_path(repo_id, file_id, file_name)
         try:
@@ -194,7 +202,6 @@ class Thumbnail(object):
     def create_pdf_thumbnails(self, repo, file_id, path, size, thumbnail_file, file_size):
         t1 = timeit.default_timer()
         inner_path = get_inner_path(repo.id, file_id, self.file_name)
-
         tmp_path = str(os.path.join(tempfile.gettempdir(), '%s.jpg' % file_id[:8]))
         pdf_file = urllib.request.urlopen(inner_path)
         pdf_stream = BytesIO(pdf_file.read())
@@ -208,19 +215,15 @@ class Thumbnail(object):
             raise AssertionError(500, 'Internal server error.')
         t2 = timeit.default_timer()
         logger.debug('Create PDF image of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-
         try:
             self._create_thumbnail_common(tmp_path, thumbnail_file, size)
+            os.unlink(tmp_path)
             pdf_stream.close()
             pdf_doc.close()
-            os.unlink(tmp_path)
-            return
         except Exception as e:
             logger.error(e)
             pdf_stream.close()
             pdf_doc.close()
-            os.unlink(tmp_path)
-            raise AssertionError(500, 'Internal server error.')
 
     def create_video_thumbnails(self, repo, file_id, path, size, thumbnail_file, file_size):
         from moviepy.editor import VideoFileClip
@@ -233,16 +236,11 @@ class Thumbnail(object):
         clip = VideoFileClip(tmp_video)
         clip.save_frame(
             tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
+        os.unlink(tmp_video)
         t2 = timeit.default_timer()
         logger.debug('Create Video image of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-        try:
-            self._create_thumbnail_common(tmp_image_path, thumbnail_file, size)
-            os.unlink(tmp_image_path)
-            return
-        except Exception as e:
-            logger.error(e)
-            os.unlink(tmp_image_path)
-            raise AssertionError(500, 'Internal server error.')
+        self._create_thumbnail_common(tmp_image_path, thumbnail_file, size)
+        os.unlink(tmp_image_path)
 
     def _create_thumbnail_common(self, fp, thumbnail_file, size):
         """Common logic for creating image thumbnail.
@@ -263,6 +261,7 @@ class Thumbnail(object):
             image = image.convert("RGB")
 
         image = self.get_rotated_image(image)
+        size = int(size)
         image.thumbnail((size, size), Image.Resampling.LANCZOS)
         image.save(thumbnail_file, THUMBNAIL_EXTENSION)
         # PIL to bytes
@@ -295,3 +294,8 @@ class Thumbnail(object):
         except Exception as e:
             logger.error(e)
             raise AssertionError(500, 'Internal server error.')
+
+    # def __await__(self):
+    #     task = asyncio.create_task(self.handle_image())
+    #     self.data = yield from task
+    #     return self

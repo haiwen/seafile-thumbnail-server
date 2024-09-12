@@ -1,5 +1,6 @@
 import re
 import os
+import time
 
 from seafile_thumbnail.http_request import HTTPRequest
 from seafile_thumbnail.http_response import gen_error_response, gen_text_response, gen_thumbnail_response, \
@@ -7,9 +8,14 @@ from seafile_thumbnail.http_response import gen_error_response, gen_text_respons
 from seafile_thumbnail.serializers import ThumbnailSerializer
 from seafile_thumbnail.thumbnail import Thumbnail
 from seafile_thumbnail.utils import cache_check
+from seafile_thumbnail.task_queue import thumbnail_task_manager
+import uvicorn
 
 
 class App:
+    def __init__(self):
+        thumbnail_task_manager.run()
+
     async def __call__(self, scope, receive, send):
         # request
         request = HTTPRequest(**scope)
@@ -38,8 +44,9 @@ class App:
             repo_id = thumbnail.repo_id
             file_path = thumbnail.file_path
             size = thumbnail.size
-            response_start, response_body = create_thumbnail_response(
-                repo_id, file_path, size, etag, last_modified)
+            thumbnail_path = thumbnail.thumbnail_path
+            response_start, response_body =await create_thumbnail_response(request,
+                repo_id, file_path, size, etag, last_modified, thumbnail_path)
             await send(response_start)
             await send(response_body)
             return
@@ -73,8 +80,9 @@ class App:
             repo_id = thumbnail.repo_id
             file_path = thumbnail.file_path
             size = thumbnail.size
-            response_start, response_body = create_thumbnail_response(
-                repo_id, file_path, size, etag, last_modified)
+            thumbnail_path = thumbnail.thumbnail_path
+            response_start, response_body =await create_thumbnail_response(request,
+                repo_id, file_path, size, etag, last_modified, thumbnail_path)
             await send(response_start)
             await send(response_body)
             return
@@ -109,3 +117,11 @@ class App:
 
 
 app = App()
+
+def run():
+    config = uvicorn.Config("main:app", port=8001, reload=True)
+    server = uvicorn.Server(config)
+    server.run()
+
+if __name__ == '__main__':
+   run()

@@ -11,6 +11,7 @@ os.environ['SEAFILE_CENTRAL_CONF_DIR'] = '/data/conf'
 # url
 URL_PREFIX = '/'
 INNER_FILE_SERVER_ROOT = 'http://127.0.0.1:8082'
+SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
 THUMBNAIL_DIR = '/data/seahub-data/thumbnail'
@@ -47,5 +48,7 @@ THUMBNAIL_EXTENSION = 'jpeg'
 SESSION_KEY = 'sessionid'
 # seahub settings secret key
 SEAHUB_WEB_SECRET_KEY = 'n*v0=jz-1rz@(4gx^tf%6^e7c&um@2)g-l=3_)t@19a69n1nv6'
+
+JWT_PRIVATE_KEY = "sunyongqiang-jwt"
 
 

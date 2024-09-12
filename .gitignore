@@ -1,0 +1,16 @@
+*.pyc
+*~
+*#
+*.pid
+*.db
+*.log
+events.log.*
+run.sh
+restart.sh
+*.conf
+cscope.*
+stats-logs/
+*.cnf
+.idea/
+.vscode/
+
