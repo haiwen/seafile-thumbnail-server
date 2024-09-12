@@ -96,8 +96,9 @@ class Thumbnail(object):
     def handle_image(self):
         if self.task_id is not None:
             while True:
-                if thumbnail_task_manager.query_status(self.task_id):
-                    break
+                if thumbnail_task_manager.query_status(self.task_id)[0]:
+                    return True
+        return True
 
     def generate_thumbnail(self):
         """ generate and save thumbnail if not exist
@@ -294,8 +295,3 @@ class Thumbnail(object):
         except Exception as e:
             logger.error(e)
             raise AssertionError(500, 'Internal server error.')
-
-    # def __await__(self):
-    #     task = asyncio.create_task(self.handle_image())
-    #     self.data = yield from task
-    #     return self

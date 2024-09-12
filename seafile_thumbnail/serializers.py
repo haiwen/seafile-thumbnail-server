@@ -175,7 +175,6 @@ class ThumbnailSerializer(object):
 
     def permission_check(self):
         permission = jwt_permission_check(self.session_data['username'], self.params['repo_id'], self.params['file_path'])
-        print(permission, 'return permission-----')
         if not permission:
             err_msg = "Permission denied."
             raise AssertionError(400, err_msg)

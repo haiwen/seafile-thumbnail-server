@@ -6,7 +6,6 @@ import json
 from seafile_thumbnail.constants import TEXT_CONTENT_TYPE, THUMBNAIL_CONTENT_TYPE, EMPTY_BYTES
 from seafile_thumbnail.utils import get_thumbnail_src, get_share_link_thumbnail_src
 
-
 def gen_response_start(status, content_type):
     return {
         'type': 'http.response.start',
@@ -38,7 +37,7 @@ def gen_text_response(text):
     return response_start, response_body
 
 
-def gen_thumbnail_response(thumbnail, etag, last_modified):
+def get_thumbnail_response(thumbnail, etag, last_modified):
     response_start = gen_response_start(200, THUMBNAIL_CONTENT_TYPE)
     response_body = gen_response_body(thumbnail)
 
@@ -51,7 +50,31 @@ def gen_thumbnail_response(thumbnail, etag, last_modified):
     return response_start, response_body
 
 
-def thumbnail_path_exits(thumbnail_path):
+async def normal_thumbnail(thumbnail_path):
+    while True:
+        with open(thumbnail_path, 'rb') as f:
+            thumbnail = f.read()
+            if len(thumbnail) != 0:
+                return thumbnail
+
+
+async def gen_thumbnail_response(thumbnail_path, etag, last_modified):
+    await thumbnail_path_exits(thumbnail_path)
+    thumbnail = await normal_thumbnail(thumbnail_path)
+
+    response_start = gen_response_start(200, THUMBNAIL_CONTENT_TYPE)
+    response_body = gen_response_body(thumbnail)
+
+    # cache
+    if thumbnail:
+        response_start['headers'].append([b'Cache-Control', b'max-age=604800, public'])
+        response_start['headers'].append([b'ETag', etag.encode('utf-8')])
+        response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
+
+    return response_start, response_body
+
+
+async def thumbnail_path_exits(thumbnail_path):
     while True:
         if os.path.exists(thumbnail_path):
             return thumbnail_path

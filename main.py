@@ -4,7 +4,7 @@ import time
 
 from seafile_thumbnail.http_request import HTTPRequest
 from seafile_thumbnail.http_response import gen_error_response, gen_text_response, gen_thumbnail_response, \
-    gen_cache_response, create_thumbnail_response
+    gen_cache_response, create_thumbnail_response, get_thumbnail_response
 from seafile_thumbnail.serializers import ThumbnailSerializer
 from seafile_thumbnail.thumbnail import Thumbnail
 from seafile_thumbnail.utils import cache_check
@@ -57,8 +57,8 @@ class App:
                 thumbnail = Thumbnail(**thumbnail_info)
                 last_modified = thumbnail.last_modified
                 etag = thumbnail.etag
-                response_start, response_body = gen_thumbnail_response(
-                    thumbnail.body, etag, last_modified)
+                response_start, response_body =await gen_thumbnail_response(
+                    thumbnail_info['thumbnail_path'], etag, last_modified)
                 await send(response_start)
                 await send(response_body)
                 return
@@ -66,7 +66,7 @@ class App:
                 thumbnail = f.read()
                 last_modified = thumbnail_info['last_modified']
                 etag = thumbnail_info['etag']
-                response_start, response_body = gen_thumbnail_response(
+                response_start, response_body = get_thumbnail_response(
                     thumbnail, etag, last_modified)
                 await send(response_start)
                 await send(response_body)
@@ -94,7 +94,7 @@ class App:
                 last_modified = thumbnail.last_modified
                 etag = thumbnail.etag
                 response_start, response_body = gen_thumbnail_response(
-                    thumbnail.body, etag, last_modified)
+                    thumbnail_info['thumbnail_path'], etag, last_modified)
                 await send(response_start)
                 await send(response_body)
                 return
@@ -102,7 +102,7 @@ class App:
                 thumbnail = f.read()
                 last_modified = thumbnail_info['last_modified']
                 etag = thumbnail_info['etag']
-                response_start, response_body = gen_thumbnail_response(
+                response_start, response_body = get_thumbnail_response(
                     thumbnail, etag, last_modified)
                 await send(response_start)
                 await send(response_body)
