@@ -1,6 +1,5 @@
 import re
 import os
-import time
 
 from seafile_thumbnail.http_request import HTTPRequest
 from seafile_thumbnail.http_response import gen_error_response, gen_text_response, gen_thumbnail_response, \
@@ -27,15 +26,16 @@ class App:
             await send(response_body)
             return
 
-#========= router=======
-# ------ping
+        # ========= router=======
+        # ------ping
         if request.url in ('ping', 'ping/'):
             response_stat, response_body = gen_text_response('pong')
             await send(response_stat)
             await send(response_body)
             return
-# ------thumbnail
-        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
+        # ------thumbnail
+        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url) or \
+                re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', request.url):
             serializer = ThumbnailSerializer(request)
             thumbnail_info = serializer.thumbnail_info
             thumbnail = Thumbnail(**thumbnail_info)
@@ -45,55 +45,21 @@ class App:
             file_path = thumbnail.file_path
             size = thumbnail.size
             thumbnail_path = thumbnail.thumbnail_path
-            response_start, response_body =await create_thumbnail_response(request,
-                repo_id, file_path, size, etag, last_modified, thumbnail_path)
+            response_start, response_body = await create_thumbnail_response(request,
+                                                                            repo_id, file_path, size, etag,
+                                                                            last_modified, thumbnail_path)
             await send(response_start)
             await send(response_body)
             return
-        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
+        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', request.url) or \
+                re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
             serializer = ThumbnailSerializer(request)
             thumbnail_info = serializer.thumbnail_info
             if not os.path.exists(thumbnail_info['thumbnail_path']):
                 thumbnail = Thumbnail(**thumbnail_info)
                 last_modified = thumbnail.last_modified
                 etag = thumbnail.etag
-                response_start, response_body =await gen_thumbnail_response(
-                    thumbnail_info['thumbnail_path'], etag, last_modified)
-                await send(response_start)
-                await send(response_body)
-                return
-            with open(thumbnail_info['thumbnail_path'], 'rb') as f:
-                thumbnail = f.read()
-                last_modified = thumbnail_info['last_modified']
-                etag = thumbnail_info['etag']
-                response_start, response_body = get_thumbnail_response(
-                    thumbnail, etag, last_modified)
-                await send(response_start)
-                await send(response_body)
-                return
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
-            thumbnail = Thumbnail(**thumbnail_info)
-            last_modified = thumbnail.last_modified
-            etag = thumbnail.etag
-            repo_id = thumbnail.repo_id
-            file_path = thumbnail.file_path
-            size = thumbnail.size
-            thumbnail_path = thumbnail.thumbnail_path
-            response_start, response_body =await create_thumbnail_response(request,
-                repo_id, file_path, size, etag, last_modified, thumbnail_path)
-            await send(response_start)
-            await send(response_body)
-            return
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
-            if not os.path.exists(thumbnail_info['thumbnail_path']):
-                thumbnail = Thumbnail(**thumbnail_info)
-                last_modified = thumbnail.last_modified
-                etag = thumbnail.etag
-                response_start, response_body =await gen_thumbnail_response(
+                response_start, response_body = await gen_thumbnail_response(
                     thumbnail_info['thumbnail_path'], etag, last_modified)
                 await send(response_start)
                 await send(response_body)
@@ -118,10 +84,12 @@ class App:
 
 app = App()
 
+
 def run():
-    config = uvicorn.Config("main:app", port=8001, reload=True)
+    config = uvicorn.Config("main:app", port=8001)
     server = uvicorn.Server(config)
     server.run()
 
+
 if __name__ == '__main__':
-   run()
+    run()

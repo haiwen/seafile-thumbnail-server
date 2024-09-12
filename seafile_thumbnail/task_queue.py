@@ -10,22 +10,12 @@ logger = logging.getLogger(__name__)
 class ThumbnailManager(object):
 
     def __init__(self):
-        self.app = None
         self.tasks_map = {}
         self.task_results_map = {}
         self.image_queue = queue.Queue(32)
         self.video_queue = queue.Queue(10)
         self.current_task_info = {}
         self.threads = []
-        self.conf = {
-            'workers': 3,
-            'expire_time': 30 * 60
-        }
-
-    def init(self, app, workers, task_expire_time, config):
-        self.app = app
-        self.conf['expire_time'] = task_expire_time
-        self.conf['workers'] = workers
 
     def is_valid_task_id(self, task_id):
         return task_id in (self.tasks_map.keys() | self.task_results_map.keys())
@@ -67,17 +57,10 @@ class ThumbnailManager(object):
             return True, task_result[6:]
         return False, None
 
-    def threads_is_alive(self):
-        info = {}
-        for t in self.threads:
-            info[t.name] = t.is_alive()
-        return info
-
     def handle_image_task(self):
         while True:
             try:
                 image_id = self.image_queue.get(timeout=2)
-                # video_id = self.video_queue.get(timeout=2)
             except queue.Empty:
                 continue
             except Exception as e:
