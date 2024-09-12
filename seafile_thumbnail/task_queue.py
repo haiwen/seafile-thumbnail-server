@@ -60,7 +60,6 @@ class ThumbnailManager(object):
         return task_id
 
     def query_status(self, task_id):
-        print(self.tasks_map,'task_map------')
         task_result = self.task_results_map.pop(task_id, None)
         if task_result == 'success':
             return True, None

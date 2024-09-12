@@ -93,7 +93,7 @@ class App:
                 thumbnail = Thumbnail(**thumbnail_info)
                 last_modified = thumbnail.last_modified
                 etag = thumbnail.etag
-                response_start, response_body = gen_thumbnail_response(
+                response_start, response_body =await gen_thumbnail_response(
                     thumbnail_info['thumbnail_path'], etag, last_modified)
                 await send(response_start)
                 await send(response_body)
