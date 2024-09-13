@@ -2,7 +2,6 @@ import os
 import re
 from django.conf import settings as dj_settings
 from django.contrib.sessions.backends.db import SessionStore
-from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
@@ -10,7 +9,7 @@ from seafile_thumbnail.seahub_db import SeahubDB
 from seafile_thumbnail.utils import session_require, get_file_type_and_ext
 from seafile_thumbnail.utils import get_real_path_by_fs_and_req_path
 from seafile_thumbnail.seahub_api import jwt_permission_check
-from seaserv import get_repo, get_file_id_by_path, seafile_api
+from seaserv import get_repo, get_file_id_by_path, seafile_api, get_file_size
 
 dj_settings.configure(SECRET_KEY=settings.SEAHUB_WEB_SECRET_KEY)
 session_store = SessionStore()
@@ -32,35 +31,21 @@ class ThumbnailSerializer(object):
     def gen_thumbnail_info(self):
         thumbnail_info = {}
         thumbnail_info.update(self.params)
-
-        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
-        re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
-            thumbnail_info.update(self.session_data)
-
         thumbnail_info.update(self.resource)
         self.thumbnail_info = thumbnail_info
 
 
     def resource_check(self):
-        file_path = self.params['file_path']
-        repo_id = self.params['repo_id']
         size = self.params['size']
-        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
-        file_id = file_obj.obj_id
+        file_id = self.params['file_id']
         thumbnail_dir = os.path.join(settings.THUMBNAIL_DIR, str(size))
         thumbnail_file = os.path.join(thumbnail_dir, file_id)
         if not os.path.exists(thumbnail_dir):
             os.makedirs(thumbnail_dir)
-        last_modified_time = file_obj.mtime
-        last_modified = formatdate(int(last_modified_time), usegmt=True)
-        etag = '"' + file_id + '"'
 
         self.resource = {
-            'file_id': file_id,
             'thumbnail_dir': thumbnail_dir,
             'thumbnail_path': thumbnail_file,
-            'last_modified': last_modified,
-            'etag': etag,
         }
 
 
@@ -140,6 +125,9 @@ class ThumbnailSerializer(object):
         if repo.encrypted:
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)
+        file_obj = seafile_api.get_dirent_by_path(repo_id, path)
+        file_id = file_obj.obj_id
+        file_size = get_file_size(repo.store_id, repo.version, file_id)
         self.get_enable_file_type()
         if filetype not in self.enable_file_type:
             raise AssertionError(400, 'file_type invalid.')
@@ -152,29 +140,19 @@ class ThumbnailSerializer(object):
             'file_type': filetype,
             'token': token,
             'file_path': path,
+            'file_size': file_size,
+            'file_id': file_id
         }
-
-    def parse_django_session(self, session_data):
-        # django/contrib/sessions/backends/base.py
-        return session_store.decode(session_data)
 
     @session_require
     def session_check(self):
         session_key = self.request.cookies[settings.SESSION_KEY]
-        django_session = self.db_cursor.get_django_session_by_session_key(session_key)
-        self.session_data = self.parse_django_session(django_session['session_data'])
-        self.session_data['session_key'] = session_key
-        username = self.session_data.get('_auth_user_name')
-        if username:
-            self.session_data['username'] = username
-
-        if not username:
-            raise AssertionError(400, 'django session invalid.')
+        self.session_key = session_key
 
         self.permission_check()
 
     def permission_check(self):
-        permission = jwt_permission_check(self.session_data['username'], self.params['repo_id'], self.params['file_path'])
+        permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'])
         if not permission:
             err_msg = "Permission denied."
             raise AssertionError(400, err_msg)

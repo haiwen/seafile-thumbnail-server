@@ -21,29 +21,30 @@ class ThumbnailManager(object):
         return task_id in (self.tasks_map.keys() | self.task_results_map.keys())
 
     def add_image_creat_task(self, func, repo, file_id, path, size, thumbnail_file):
+        print(self.tasks_map,'task_map-------')
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, path, size, thumbnail_file))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id
 
-    def add_pdf_create_task(self, func, repo, file_id, path, size, thumbnail_file, file_size):
+    def add_pdf_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
         task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, path, size, thumbnail_file, file_size))
+        task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id
 
-    def add_xmind_create_task(self, func, repo_id, size):
+    def add_xmind_create_task(self, func, repo_id, path, size):
         task_id = str(uuid.uuid4())
-        task = (func, (repo_id, size))
+        task = (func, (repo_id, path, size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id
 
-    def add_video_task(self, func, repo, file_id, path, size, thumbnail_file, file_size):
+    def add_video_task(self, func, repo, file_id, path, size, thumbnail_file):
         task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, path, size, thumbnail_file, file_size))
+        task = (func, (repo, file_id, path, size, thumbnail_file))
 
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task

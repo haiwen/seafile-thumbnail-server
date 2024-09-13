@@ -21,6 +21,8 @@ PREVIEW_FILEEXT = {
     XMIND: ('xmind',),
     SEADOC: ('sdoc',),
 }
+
+
 def gen_fileext_type_map():
     """
     Generate previewed file extension and file type relation map.
@@ -31,7 +33,10 @@ def gen_fileext_type_map():
             d[fileext] = filetype
 
     return d
+
+
 FILEEXT_TYPE_MAP = gen_fileext_type_map()
+
 
 def get_conf_text_ext():
     """
@@ -60,7 +65,7 @@ def get_file_type_and_ext(filename):
 def get_inner_path(repo_id, file_id, file_name, file_type=None):
     if file_type == IMAGE:
         token = seafile_api.get_fileserver_access_token(
-        repo_id, file_id, 'view', '', use_onetime=True)
+            repo_id, file_id, 'view', '', use_onetime=True)
     else:
         token = seafile_api.get_fileserver_access_token(
             repo_id, file_id, 'view', '', use_onetime=False)
@@ -88,12 +93,14 @@ def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
 
     return real_path
 
+
 def session_require(func):
     def wrapper(self, *args, **kwargs):
         if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
                 re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
             result = func(self, *args, **kwargs)
             return result
+
     return wrapper
 
 
@@ -115,5 +122,14 @@ def cache_check(request, info):
 def get_thumbnail_src(repo_id, size, path):
     return posixpath.join("thumbnail", repo_id, str(size), path.lstrip('/'))
 
+
 def get_share_link_thumbnail_src(token, size, path):
     return posixpath.join("thumbnail", token, str(size), path.lstrip('/'))
+
+
+def get_file_id(repo_id, file_path):
+    file_id = seafile_api.get_file_id_by_path(repo_id, file_path)
+    if not file_id:
+        raise ValueError(404, 'file_id not found.')
+
+    return file_id

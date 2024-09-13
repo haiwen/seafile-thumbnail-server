@@ -1,7 +1,6 @@
 import logging
 import os
 import tempfile
-import asyncio
 import timeit
 import zipfile
 import urllib.request, urllib.error, urllib.parse
@@ -12,7 +11,7 @@ from pillow_heif import register_heif_opener
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_inner_path
-from seafile_thumbnail.constants import VIDEO, PDF, XMIND, EMPTY_BYTES
+from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
 from seafile_thumbnail.task_queue import thumbnail_task_manager
@@ -30,268 +29,246 @@ XMIND_IMAGE_SIZE = 1024
 register_heif_opener()
 
 
-# =================Thumbnail================
-class Thumbnail(object):
-    def __init__(self, **info):
-        self.__dict__.update(info)
-        self.task_id = None
-        self.body = EMPTY_BYTES
-        self.get()
-        self.handle_image()
-
-    def get(self):
-        if os.path.exists(self.thumbnail_path):
-            with open(self.thumbnail_path, 'rb') as f:
-                self.body = f.read()
-
-        else:
-            self.generate_thumbnail()
-
-    def get_rotated_image(self, image):
-
-        # get image's exif info
-        try:
-            exif = image._getexif() if image._getexif() else {}
-        except Exception:
-            return image
-
-        orientation = exif.get(0x0112) if isinstance(exif, dict) else 1
-        # rotate image according to Orientation info
-
-        # im.transpose(method)
-        # Returns a flipped or rotated copy of an image.
-        # Method can be one of the following: FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, ROTATE_90, ROTATE_180, or ROTATE_270.
-
-        # expand: Optional expansion flag.
-        # If true, expands the output image to make it large enough to hold the entire rotated image.
-        # If false or omitted, make the output image the same size as the input image.
-
-        if orientation == 2:
-            # Vertical image
-            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 3:
-            # Rotation 180
-            image = image.rotate(180)
-        elif orientation == 4:
-            image = image.rotate(180).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            # Horizontal image
-        elif orientation == 5:
-            # Horizontal image + Rotation 90 CCW
-            image = image.rotate(-90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 6:
-            # Rotation 270
-            image = image.rotate(-90, expand=True)
-        elif orientation == 7:
-            # Horizontal image + Rotation 270
-            image = image.rotate(90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 8:
-            # Rotation 90
-            image = image.rotate(90, expand=True)
-
+def get_rotated_image(image):
+    # get image's exif info
+    try:
+        exif = image._getexif() if image._getexif() else {}
+    except Exception:
         return image
 
-    def task_is_done(self):
-        return thumbnail_task_manager.query_status(self.task_id)
+    orientation = exif.get(0x0112) if isinstance(exif, dict) else 1
+    # rotate image according to Orientation info
 
-    def handle_image(self):
-        if self.task_id is not None:
-            while True:
-                if thumbnail_task_manager.query_status(self.task_id)[0]:
-                    return True
-        return True
+    # im.transpose(method)
+    # Returns a flipped or rotated copy of an image.
+    # Method can be one of the following: FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, ROTATE_90, ROTATE_180, or ROTATE_270.
 
-    def generate_thumbnail(self):
-        """ generate and save thumbnail if not exist
+    # expand: Optional expansion flag.
+    # If true, expands the output image to make it large enough to hold the entire rotated image.
+    # If false or omitted, make the output image the same size as the input image.
 
-        before generate thumbnail, you should check:
-        1. if repo exist: should exist;
-        2. if repo is encrypted: not encrypted;
-        """
-        repo_id = self.repo_id
-        path = self.file_path
-        size = int(self.size)
-        file_id = self.file_id
-        file_name = self.file_name
-        thumbnail_file = self.thumbnail_path
-        if self.file_type == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
-            raise AssertionError(400, 'not configured.')
+    if orientation == 2:
+        # Vertical image
+        image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    elif orientation == 3:
+        # Rotation 180
+        image = image.rotate(180)
+    elif orientation == 4:
+        image = image.rotate(180).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        # Horizontal image
+    elif orientation == 5:
+        # Horizontal image + Rotation 90 CCW
+        image = image.rotate(-90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    elif orientation == 6:
+        # Rotation 270
+        image = image.rotate(-90, expand=True)
+    elif orientation == 7:
+        # Horizontal image + Rotation 270
+        image = image.rotate(90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    elif orientation == 8:
+        # Rotation 90
+        image = image.rotate(90, expand=True)
 
-        repo = get_repo(repo_id)
-        file_size = get_file_size(repo.store_id, repo.version, file_id)
+    return image
 
-        if self.file_type == VIDEO:
-            # video thumbnails
-            if ENABLE_VIDEO_THUMBNAIL:
-                task_id = thumbnail_task_manager.add_video_task(self.create_video_thumbnails, repo, file_id, path, size,
-                                                                thumbnail_file, file_size)
-                self.task_id = task_id
-            else:
-                raise AssertionError(400, 'not configured.')
-            return
-        if self.file_type == PDF:
-            # pdf thumbnails
-            task_id = thumbnail_task_manager.add_pdf_create_task(self.create_pdf_thumbnails, repo, file_id, path,
-                                                                 size, thumbnail_file, file_size)
-            self.task_id = task_id
-            return
 
-        if self.file_type == XMIND:
-            # self.extract_xmind_image(repo_id, size)
-            task_id = thumbnail_task_manager.add_xmind_create_task(self.extract_xmind_image, repo_id, size)
-            self.task_id = task_id
-            return
+def generate_thumbnail(request, thumbnail_info):
+    """ generate and save thumbnail if not exist
 
-        # image thumbnails
-        if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
-            raise AssertionError(400, 'file_size invalid.')
+    before generate thumbnail, you should check:
+    1. if repo exist: should exist;
+    2. if repo is encrypted: not encrypted;
+    """
+    size = int(thumbnail_info['size'])
+    repo_id = thumbnail_info['repo_id']
+    filetype = thumbnail_info['file_type']
+    fileext = thumbnail_info['file_ext']
+    file_size = thumbnail_info['file_size']
+    file_id = thumbnail_info['file_id']
+    thumbnail_file = thumbnail_info['thumbnail_path']
+    path = thumbnail_info['file_path']
+    file_name = thumbnail_info['file_name']
 
-        if self.file_ext.lower() == 'psd':
-            task_id = thumbnail_task_manager.add_image_creat_task(self.create_psd_thumbnails, repo, file_id, path,
-                                                                  size, thumbnail_file)
-            self.task_id = task_id
-            return
+    if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
+        return (False, 400)
+    if os.path.exists(thumbnail_file):
+        return (True, 200)
 
-        task_id = thumbnail_task_manager.add_image_creat_task(self.create_image_thumbnail, repo_id, file_id,
-                                                              thumbnail_file, file_name, size)
-        self.task_id = task_id
+    if filetype == VIDEO:
+        # video thumbnails
+        if ENABLE_VIDEO_THUMBNAIL:
+            task_id = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
+                                                            thumbnail_file)
+            return (task_id, 200)
+        else:
+            return (False, 400)
+    if filetype == PDF:
+        # pdf thumbnails
+        task_id = thumbnail_task_manager.add_pdf_create_task(create_pdf_thumbnails, repo_id, file_id, path,
+                                                             size, thumbnail_file, file_size)
+        return (task_id, 200)
+    if filetype == XMIND:
+        task_id = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, path, size)
+        return (task_id, 200)
 
-    def create_image_thumbnail(self, repo_id, file_id, thumbnail_file, file_name, size):
-        # image thumbnail
-        inner_path = get_inner_path(repo_id, file_id, file_name)
-        try:
-            image_file = urllib.request.urlopen(inner_path)
-            f = BytesIO(image_file.read())
-            self._create_thumbnail_common(f, thumbnail_file, size)
-            return
-        except Exception as e:
-            logger.warning(e)
-            raise AssertionError(500, 'Internal server error.')
+    # image thumbnails
+    if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
+        return (False, 400)
+    if fileext.lower() == 'psd':
+        task_id = thumbnail_task_manager.add_image_creat_task(create_psd_thumbnails, repo_id, file_id, path,
+                                                              size, thumbnail_file, file_size)
+        return (task_id, 200)
 
-    def create_psd_thumbnails(self, repo, file_id, path, size, thumbnail_file, file_size):
-        try:
-            from psd_tools import PSDImage
-        except ImportError:
-            logger.error("Could not find psd_tools installed. "
-                         "Please install by 'pip install psd_tools'")
-            raise AssertionError(500, 'Internal server error.')
+    task_id = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
+                                                          thumbnail_file, file_name, size)
+    print(task_id)
+    return (task_id, 200)
 
-        tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
-        t1 = timeit.default_timer()
 
-        inner_path = get_inner_path(repo.id, file_id, self.file_name)
+def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
+    # image thumbnail
+    inner_path = get_inner_path(repo_id, file_id, file_name)
+    try:
+        image_file =urllib.request.urlopen(inner_path)
+        f = BytesIO(image_file.read())
+        _create_thumbnail_common(f, thumbnail_file, size)
+        return
+    except Exception as e:
+        logger.warning(e)
+        raise AssertionError(500, 'Internal server error.')
 
-        tmp_file = os.path.join(tempfile.gettempdir(), file_id)
-        urlretrieve(inner_path, tmp_file)
-        psd = PSDImage.open(tmp_file)
 
-        merged_image = psd.topil()
-        merged_image.save(tmp_img_path)
-        os.unlink(tmp_file)  # remove origin psd file
+def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
+    try:
+        from psd_tools import PSDImage
+    except ImportError:
+        logger.error("Could not find psd_tools installed. "
+                     "Please install by 'pip install psd_tools'")
+        return (False, 500)
 
-        t2 = timeit.default_timer()
-        logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+    tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
+    t1 = timeit.default_timer()
 
-        try:
-            self._create_thumbnail_common(tmp_img_path, thumbnail_file, size)
-            os.unlink(tmp_img_path)
-            return
-        except Exception as e:
-            logger.error(e)
-            os.unlink(tmp_img_path)
-            raise AssertionError(500, 'Internal server error.')
+    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
 
-    def create_pdf_thumbnails(self, repo, file_id, path, size, thumbnail_file, file_size):
-        t1 = timeit.default_timer()
-        inner_path = get_inner_path(repo.id, file_id, self.file_name)
-        tmp_path = str(os.path.join(tempfile.gettempdir(), '%s.jpg' % file_id[:8]))
-        pdf_file = urllib.request.urlopen(inner_path)
-        pdf_stream = BytesIO(pdf_file.read())
-        try:
-            pdf_doc = fitz_open(stream=pdf_stream)
-            page = pdf_doc[0]
-            pix = page.get_pixmap()
-            pix.save(tmp_path)
-        except Exception as e:
-            logger.error(e)
-            raise AssertionError(500, 'Internal server error.')
-        t2 = timeit.default_timer()
-        logger.debug('Create PDF image of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-        try:
-            self._create_thumbnail_common(tmp_path, thumbnail_file, size)
-            os.unlink(tmp_path)
-            pdf_stream.close()
-            pdf_doc.close()
-        except Exception as e:
-            logger.error(e)
-            pdf_stream.close()
-            pdf_doc.close()
+    tmp_file = os.path.join(tempfile.gettempdir(), file_id)
+    urlretrieve(inner_path, tmp_file)
+    psd = PSDImage.open(tmp_file)
 
-    def create_video_thumbnails(self, repo, file_id, path, size, thumbnail_file, file_size):
-        from moviepy.editor import VideoFileClip
-        t1 = timeit.default_timer()
-        tmp_image_path = os.path.join(
-            tempfile.gettempdir(), file_id + '.png')
-        tmp_video = os.path.join(tempfile.gettempdir(), file_id)
-        inner_path = get_inner_path(repo.id, file_id, self.file_name)
-        urllib.request.urlretrieve(inner_path, tmp_video)
-        clip = VideoFileClip(tmp_video)
-        clip.save_frame(
-            tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
-        os.unlink(tmp_video)
-        t2 = timeit.default_timer()
-        logger.debug('Create Video image of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-        self._create_thumbnail_common(tmp_image_path, thumbnail_file, size)
+    merged_image = psd.topil()
+    merged_image.save(tmp_img_path)
+    os.unlink(tmp_file)  # remove origin psd file
+
+    t2 = timeit.default_timer()
+    logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+
+    try:
+        ret = _create_thumbnail_common(tmp_img_path, thumbnail_file, size)
+        os.unlink(tmp_img_path)
+        return ret
+    except Exception as e:
+        logger.error(e)
+        os.unlink(tmp_img_path)
+        return (False, 500)
+
+
+def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
+    t1 = timeit.default_timer()
+    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
+    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id[:8]))
+    pdf_file = urllib.request.urlopen(inner_path)
+    pdf_stream = BytesIO(pdf_file.read())
+    try:
+        pdf_doc = fitz_open(stream=pdf_stream)
+        pdf_stream.close()
+        page = pdf_doc[0]
+        pix = page.get_pixmap()
+        pix.save(tmp_path)
+        pdf_doc.close()
+    except Exception as e:
+        logger.error(e)
+        return (False, 500)
+    t2 = timeit.default_timer()
+    logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+
+    try:
+        ret = _create_thumbnail_common(tmp_path, thumbnail_file, size)
+        os.unlink(tmp_path)
+        return ret
+    except Exception as e:
+        logger.error(e)
+        os.unlink(tmp_path)
+        return (False, 500)
+
+
+def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
+    from moviepy.editor import VideoFileClip
+    tmp_image_path = os.path.join(
+        tempfile.gettempdir(), file_id + '.png')
+    tmp_video = os.path.join(tempfile.gettempdir(), file_id)
+    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
+    urllib.request.urlretrieve(inner_path, tmp_video)
+    clip = VideoFileClip(tmp_video)
+    clip.save_frame(
+        tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
+    try:
+        ret = _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
+        return ret
+    except Exception as e:
+        logger.error(e)
 
-    def _create_thumbnail_common(self, fp, thumbnail_file, size):
-        """Common logic for creating image thumbnail.
 
-        `fp` can be a filename (string) or a file object.
-        """
-        image = Image.open(fp)
-        # check image memory cost size limit
-        # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
-        # every pixel will cost 4 byte in RGBA mode
-        width, height = image.size
-        image_memory_cost = width * height * 4 / 1024 / 1024
+def _create_thumbnail_common(fp, thumbnail_file, size):
+    """Common logic for creating image thumbnail.
 
-        if image_memory_cost > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
-            raise AssertionError(500, 'Thumbnail original size limit.')
+    `fp` can be a filename (string) or a file object.
+    """
+    image = Image.open(fp)
 
-        if image.mode not in ["1", "L", "P", "RGB"]:
-            image = image.convert("RGB")
+    # check image memory cost size limit
+    # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
+    # every pixel will cost 4 byte in RGBA mode
+    width, height = image.size
+    image_memory_cost = width * height * 4 / 1024 / 1024
+    if image_memory_cost > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
+        return (False, 403)
 
-        image = self.get_rotated_image(image)
-        size = int(size)
-        image.thumbnail((size, size), Image.Resampling.LANCZOS)
-        image.save(thumbnail_file, THUMBNAIL_EXTENSION)
-        # PIL to bytes
-        byte_io = BytesIO()
-        image.save(byte_io, format='JPEG')
-        self.body = byte_io.read()
+    if image.mode not in ["1", "L", "P", "RGB"]:
+        image = image.convert("RGB")
 
-    def extract_xmind_image(self, repo_id, size=XMIND_IMAGE_SIZE):
-        # get inner path
-        inner_path = get_inner_path(repo_id, self.file_id, self.file_name)
-        # extract xmind image
-        xmind_file = urllib.request.urlopen(inner_path)
-        xmind_file_str = BytesIO(xmind_file.read())
-        try:
-            xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
-        except Exception as e:
-            logger.error(e)
-            raise AssertionError(500, 'Internal server error.')
-        extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
-        extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+    image = get_rotated_image(image)
+    image.thumbnail((size, size), Image.Resampling.LANCZOS)
+    image.save(thumbnail_file, THUMBNAIL_EXTENSION)
+    return (True, 200)
 
-        # save origin xmind image to thumbnail folder
-        thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
-        if not os.path.exists(thumbnail_dir):
-            os.makedirs(thumbnail_dir)
-        local_xmind_image = os.path.join(thumbnail_dir, self.file_id)
-        try:
-            self._create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
-            return
-        except Exception as e:
-            logger.error(e)
-            raise AssertionError(500, 'Internal server error.')
+
+def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
+    # get inner path
+    file_name = os.path.basename(path)
+    file_id = seafile_api.get_file_id_by_path(repo_id, path)
+    inner_path = get_inner_path(repo_id, file_id, file_name)
+
+    # extract xmind image
+    xmind_file = urllib.request.urlopen(inner_path)
+    xmind_file_str = BytesIO(xmind_file.read())
+    try:
+        xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
+    except Exception as e:
+        logger.error(e)
+        return (False, 500)
+    extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
+    extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+
+    # save origin xmind image to thumbnail folder
+    thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
+    if not os.path.exists(thumbnail_dir):
+        os.makedirs(thumbnail_dir)
+    local_xmind_image = os.path.join(thumbnail_dir, file_id)
+
+    try:
+        ret = _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+        return ret
+    except Exception as e:
+        logger.error(e)
+        return (False, 500)

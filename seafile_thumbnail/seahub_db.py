@@ -117,13 +117,13 @@ class SeahubDB(object):
             return repo_id, path, s_type
 
 
-    def session_info(self, data):
-        info = {
-            'session_key': data[0],
-            'session_data': data[1],
-            'expire_date': data[2]
-        }
-        return info
+    # def session_info(self, data):
+    #     info = {
+    #         'session_key': data[0],
+    #         'session_data': data[1],
+    #         'expire_date': data[2]
+    #     }
+    #     return info
 
     def get_django_session_by_session_key(self, session_key):
         sql = f"""
