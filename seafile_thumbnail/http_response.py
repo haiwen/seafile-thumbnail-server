@@ -4,10 +4,8 @@ import os
 import json
 import posixpath
 import datetime
-from django.views.decorators.http import condition
-
-
 from urllib.parse import quote
+
 from seafile_thumbnail.settings import THUMBNAIL_ROOT, THUMBNAIL_EXTENSION
 from seafile_thumbnail.thumbnail import generate_thumbnail
 from seafile_thumbnail.constants import TEXT_CONTENT_TYPE

@@ -1,3 +1,8 @@
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 import logging
 import os
 import tempfile
@@ -7,7 +12,7 @@ import urllib.request, urllib.error, urllib.parse
 from io import BytesIO
 from fitz import open as fitz_open
 from PIL import Image
-from pillow_heif import register_heif_opener
+
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_inner_path
@@ -26,7 +31,6 @@ except:
 logger = logging.getLogger(__name__)
 
 XMIND_IMAGE_SIZE = 1024
-register_heif_opener()
 
 
 def get_rotated_image(image):

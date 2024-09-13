@@ -62,8 +62,12 @@ def jwt_share_link_permission_check(session_key, token):
             return False
 
         res = json.loads(response.text)
-        if res["success"]:
-            return True
+        success = res['success']
+        share_path = res['share_path']
+        repo_id = res['repo_id']
+        share_type = res['share_type']
+        if success:
+            return success, repo_id, share_path, share_type
         else:
             return False
     except Exception as e:

@@ -1,5 +1,4 @@
 import os
-import re
 import urllib.parse
 import posixpath
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
