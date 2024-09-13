@@ -94,16 +94,6 @@ def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
     return real_path
 
 
-def session_require(func):
-    def wrapper(self, *args, **kwargs):
-        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
-                re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
-            result = func(self, *args, **kwargs)
-            return result
-
-    return wrapper
-
-
 def cache_check(request, info):
     etag = info.get('etag')
     if_none_match_headers = request.headers.get('if-none-match')

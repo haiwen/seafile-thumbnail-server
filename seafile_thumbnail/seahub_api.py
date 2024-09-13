@@ -41,7 +41,8 @@ def jwt_permission_check(session_key, repo_id, path):
     except Exception as e:
         logger.error(e)
         return False
-    
+
+
 def jwt_share_link_permission_check(session_key, token):
     jwt_url = '%s/api/v2.1/internal/check-share-link-thumbnail/' % SEAHUB_SERVICE_URL.rstrip('/')
     

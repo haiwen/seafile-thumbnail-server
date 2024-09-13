@@ -1,19 +1,14 @@
 import os
 import re
-from django.conf import settings as dj_settings
-from django.contrib.sessions.backends.db import SessionStore
 from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.seahub_db import SeahubDB
-from seafile_thumbnail.utils import session_require, get_file_type_and_ext
+from seafile_thumbnail.utils import get_file_type_and_ext
 from seafile_thumbnail.utils import get_real_path_by_fs_and_req_path
-from seafile_thumbnail.seahub_api import jwt_permission_check
+from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
 from seaserv import get_repo, get_file_id_by_path, seafile_api, get_file_size
-
-dj_settings.configure(SECRET_KEY=settings.SEAHUB_WEB_SECRET_KEY)
-session_store = SessionStore()
 
 
 class ThumbnailSerializer(object):
@@ -150,15 +145,27 @@ class ThumbnailSerializer(object):
             'file_id': file_id
         }
 
-    @session_require
     def session_check(self):
-        session_key = self.request.cookies[settings.SESSION_KEY]
+        try:
+            session_key = self.request.cookies[settings.SESSION_KEY]
+        except:
+            session_key = ''
         self.session_key = session_key
-
-        self.permission_check()
+        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
+                re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+            self.permission_check()
+        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url) or \
+                re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
+            self.jwt_share_permission_check()
 
     def permission_check(self):
         permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'])
+        if not permission:
+            err_msg = "Permission denied."
+            raise AssertionError(400, err_msg)
+
+    def jwt_share_permission_check(self):
+        permission = jwt_share_link_permission_check(self.session_key, self.params['token'])
         if not permission:
             err_msg = "Permission denied."
             raise AssertionError(400, err_msg)
