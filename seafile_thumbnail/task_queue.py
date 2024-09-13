@@ -13,7 +13,7 @@ class ThumbnailManager(object):
         self.tasks_map = {}
         self.task_results_map = {}
         self.image_queue = queue.Queue(32)
-        self.video_queue = queue.Queue(10)
+        self.video_queue = queue.Queue(32)
         self.current_task_info = {}
         self.threads = []
 
@@ -21,7 +21,6 @@ class ThumbnailManager(object):
         return task_id in (self.tasks_map.keys() | self.task_results_map.keys())
 
     def add_image_creat_task(self, func, repo, file_id, path, size, thumbnail_file):
-        print(self.tasks_map,'task_map-------')
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, path, size, thumbnail_file))
         self.image_queue.put(task_id)

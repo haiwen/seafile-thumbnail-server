@@ -125,11 +125,3 @@ def get_thumbnail_src(repo_id, size, path):
 
 def get_share_link_thumbnail_src(token, size, path):
     return posixpath.join("thumbnail", token, str(size), path.lstrip('/'))
-
-
-def get_file_id(repo_id, file_path):
-    file_id = seafile_api.get_file_id_by_path(repo_id, file_path)
-    if not file_id:
-        raise ValueError(404, 'file_id not found.')
-
-    return file_id

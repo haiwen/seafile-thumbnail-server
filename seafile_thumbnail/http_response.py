@@ -4,7 +4,6 @@ import os
 import json
 import posixpath
 import datetime
-import time
 
 from urllib.parse import quote
 from seafile_thumbnail.settings import THUMBNAIL_ROOT, THUMBNAIL_EXTENSION
@@ -24,7 +23,8 @@ def gen_response_start(status, content_type):
         'type': 'http.response.start',
         'status': status,
         'headers': [
-            [b'Content-Type', content_type]
+            [b'Content-Type', content_type],
+            [b'Cache-Control', b'max-age=604800, public']
         ]
     }
 
@@ -60,20 +60,10 @@ async def gen_thumbnail_response(request, thumbnail_info):
     if status == 400:
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
-    if isinstance(task_id, bool) and task_id:
-        src = get_thumbnail_src(repo_id, size, path)
-        result['encoded_thumbnail_src'] = quote(src)
-        result = json.dumps(result)
-        result_b = str(result).encode('utf-8')
-
-        response_start = gen_response_start(200, content_type)
-        response_body = gen_response_body(result_b)
-        return response_start, response_body
-
-    while True:
-        if thumbnail_task_manager.query_status(task_id)[0]:
-            break
-        time.sleep(1)
+    if not isinstance(task_id, bool):
+        while True:
+            if thumbnail_task_manager.query_status(task_id)[0]:
+                break
     src = get_thumbnail_src(repo_id, size, path)
     result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
@@ -90,7 +80,6 @@ async def thumbnail_get(request, thumbnail_info):
     return thumbnail file to web
     """
     thumbnail_file = thumbnail_info['thumbnail_path']
-    success = True
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
         if status == 400:
@@ -99,17 +88,15 @@ async def thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
-            time.sleep(1)
 
-    if success:
-        with open(thumbnail_file, 'rb') as f:
-            thumbnail = f.read()
-            response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
-            response_body = gen_response_body(thumbnail)
-            if thumbnail:
-                response_start['headers'].append([b'Cache-Control', b'max-age=604800, public'])
+    with open(thumbnail_file, 'rb') as f:
+        thumbnail = f.read()
+        response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
+        response_body = gen_response_body(thumbnail)
+        if thumbnail:
+            response_start['headers'].append([b'Cache-Control', b'max-age=604800, public'])
 
-            return response_start, response_body
+        return response_start, response_body
 
 
 def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
@@ -145,10 +132,10 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     if status == 400:
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
-    while True:
-        if thumbnail_task_manager.query_status(task_id)[0]:
-            break
-        time.sleep(1)
+    if not isinstance(task_id, bool):
+        while True:
+            if thumbnail_task_manager.query_status(task_id)[0]:
+                break
     src = get_share_link_thumbnail_src(token, size, file_name)
     result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
@@ -190,7 +177,6 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
-            time.sleep(1)
 
     with open(thumbnail_file, 'rb') as f:
         thumbnail = f.read()

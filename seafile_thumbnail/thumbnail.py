@@ -121,7 +121,6 @@ def generate_thumbnail(request, thumbnail_info):
 
     task_id = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
                                                           thumbnail_file, file_name, size)
-    print(task_id)
     return (task_id, 200)
 
 
@@ -129,7 +128,7 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
     # image thumbnail
     inner_path = get_inner_path(repo_id, file_id, file_name)
     try:
-        image_file =urllib.request.urlopen(inner_path)
+        image_file = urllib.request.urlopen(inner_path)
         f = BytesIO(image_file.read())
         _create_thumbnail_common(f, thumbnail_file, size)
         return
