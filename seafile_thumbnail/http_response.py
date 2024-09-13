@@ -112,15 +112,18 @@ async def thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
-
-    with open(thumbnail_file, 'rb') as f:
-        thumbnail = f.read()
-        response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
-        response_body = gen_response_body(thumbnail)
-        if thumbnail:
-            response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
-
-        return response_start, response_body
+    try:
+        with open(thumbnail_file, 'rb') as f:
+            thumbnail = f.read()
+            response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
+            response_body = gen_response_body(thumbnail)
+            if thumbnail:
+                response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
+    
+            return response_start, response_body
+    except:
+        err_msg = 'Failed to create thumbnail.'
+        return gen_error_response(400, err_msg)
 
 
 def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
@@ -201,10 +204,14 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
-
-    with open(thumbnail_file, 'rb') as f:
-        thumbnail = f.read()
-        response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
-        response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
-        response_body = gen_response_body(thumbnail)
-        return response_start, response_body
+    
+    try:
+        with open(thumbnail_file, 'rb') as f:
+            thumbnail = f.read()
+            response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
+            response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
+            response_body = gen_response_body(thumbnail)
+            return response_start, response_body
+    except:
+        err_msg = 'Failed to create thumbnail.'
+        return gen_error_response(400, err_msg)

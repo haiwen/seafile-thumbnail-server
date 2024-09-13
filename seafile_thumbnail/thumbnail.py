@@ -134,7 +134,8 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
         return
     except Exception as e:
         logger.warning(e)
-        raise AssertionError(500, 'Internal server error.')
+        return (False, 500)
+        
 
 
 def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -166,8 +167,8 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         os.unlink(tmp_img_path)
         return ret
     except Exception as e:
-        logger.error(e)
-        os.unlink(tmp_img_path)
+        logger.warning(e)
+        os.path.exists(tmp_img_path) and os.unlink(tmp_img_path)
         return (False, 500)
 
 
@@ -185,7 +186,7 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         pix.save(tmp_path)
         pdf_doc.close()
     except Exception as e:
-        logger.error(e)
+        logger.warning(e)
         return (False, 500)
     t2 = timeit.default_timer()
     logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
@@ -195,27 +196,31 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         os.unlink(tmp_path)
         return ret
     except Exception as e:
-        logger.error(e)
+        logger.warning(e)
         os.unlink(tmp_path)
         return (False, 500)
 
 
 def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
+   
     from moviepy.editor import VideoFileClip
     tmp_image_path = os.path.join(
         tempfile.gettempdir(), file_id + '.png')
-    tmp_video = os.path.join(tempfile.gettempdir(), file_id)
-    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
-    urllib.request.urlretrieve(inner_path, tmp_video)
-    clip = VideoFileClip(tmp_video)
-    clip.save_frame(
-        tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
     try:
+        tmp_video = os.path.join(tempfile.gettempdir(), file_id)
+        inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
+        urllib.request.urlretrieve(inner_path, tmp_video)
+        clip = VideoFileClip(tmp_video)
+        clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
+        
         ret = _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
         return ret
     except Exception as e:
-        logger.error(e)
+        logger.warning(e)
+        if os.path.exists(tmp_image_path):
+            os.unlink(tmp_image_path)
+        return (False, 500)
 
 
 def _create_thumbnail_common(fp, thumbnail_file, size):
@@ -269,5 +274,5 @@ def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
         ret = _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
         return ret
     except Exception as e:
-        logger.error(e)
+        logger.warning(e)
         return (False, 500)
