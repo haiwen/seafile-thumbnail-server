@@ -2,6 +2,7 @@ import os
 import re
 from django.conf import settings as dj_settings
 from django.contrib.sessions.backends.db import SessionStore
+from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
@@ -38,14 +39,19 @@ class ThumbnailSerializer(object):
     def resource_check(self):
         size = self.params['size']
         file_id = self.params['file_id']
+        repo_id = self.params['repo_id']
+        file_path = self.params['file_path']
         thumbnail_dir = os.path.join(settings.THUMBNAIL_DIR, str(size))
         thumbnail_file = os.path.join(thumbnail_dir, file_id)
         if not os.path.exists(thumbnail_dir):
             os.makedirs(thumbnail_dir)
-
+        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
+        last_modified_time = file_obj.mtime
+        last_modified = formatdate(int(last_modified_time), usegmt=True)
         self.resource = {
             'thumbnail_dir': thumbnail_dir,
             'thumbnail_path': thumbnail_file,
+            'last_modified': last_modified
         }
 
 

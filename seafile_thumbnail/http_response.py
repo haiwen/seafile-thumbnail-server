@@ -4,11 +4,12 @@ import os
 import json
 import posixpath
 import datetime
+from django.views.decorators.http import condition
+
 
 from urllib.parse import quote
 from seafile_thumbnail.settings import THUMBNAIL_ROOT, THUMBNAIL_EXTENSION
 from seafile_thumbnail.thumbnail import generate_thumbnail
-from seafile_thumbnail.seahub_db import SeahubDB
 from seafile_thumbnail.constants import TEXT_CONTENT_TYPE
 from seafile_thumbnail.utils import get_thumbnail_src, get_share_link_thumbnail_src
 from seafile_thumbnail.task_queue import thumbnail_task_manager
@@ -49,13 +50,13 @@ def gen_text_response(text):
 
     return response_start, response_body
 
-
 async def gen_thumbnail_response(request, thumbnail_info):
     content_type = 'application/json; charset=utf-8'
     result = {}
     repo_id = thumbnail_info['repo_id']
     size = thumbnail_info['size']
     path = thumbnail_info['file_path']
+    last_modified = thumbnail_info['last_modified']
     task_id, status = generate_thumbnail(request, thumbnail_info)
     if status == 400:
         err_msg = 'Failed to create thumbnail.'
@@ -70,16 +71,39 @@ async def gen_thumbnail_response(request, thumbnail_info):
     result_b = str(result).encode('utf-8')
 
     response_start = gen_response_start(200, content_type)
+    response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
     response_body = gen_response_body(result_b)
     return response_start, response_body
 
+def latest_entry(request, thumbnail_info):
+    repo_id = thumbnail_info['repo_id']
+    path = thumbnail_info['file_path']
+    size = thumbnail_info['size']
+    obj_id = get_file_id_by_path(repo_id, path)
+    if obj_id:
+        try:
+            thumbnail_file = os.path.join(THUMBNAIL_ROOT, str(size), obj_id)
+            last_modified_time = os.path.getmtime(thumbnail_file)
+            # convert float to datatime obj
+            return datetime.datetime.fromtimestamp(last_modified_time)
+        except os.error:
+            # no thumbnail file exists
+            return None
+        except Exception as e:
+            # catch all other errors
+            logger.error(e, exc_info=True)
+            return None
+    else:
+        return None
 
+# @condition(last_modified_func=latest_entry)
 async def thumbnail_get(request, thumbnail_info):
     """
     handle thumbnail src from repo file list
     return thumbnail file to web
     """
     thumbnail_file = thumbnail_info['thumbnail_path']
+    last_modified = thumbnail_info['last_modified']
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
         if status == 400:
@@ -94,7 +118,7 @@ async def thumbnail_get(request, thumbnail_info):
         response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
         response_body = gen_response_body(thumbnail)
         if thumbnail:
-            response_start['headers'].append([b'Cache-Control', b'max-age=604800, public'])
+            response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
 
         return response_start, response_body
 
@@ -127,6 +151,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     token = thumbnail_info['token']
     size = thumbnail_info['size']
     file_name = thumbnail_info['file_name']
+    last_modified = thumbnail_info['last_modified']
 
     task_id, status = generate_thumbnail(request, thumbnail_info)
     if status == 400:
@@ -141,16 +166,15 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     result = json.dumps(result)
     result_b = str(result).encode('utf-8')
     response_start = gen_response_start(200, content_type)
+    response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
     response_body = gen_response_body(result_b)
     return response_start, response_body
 
 
-def share_link_latest_entry(request, token, size, path):
-    seahub_db = SeahubDB()
-    repo_id, fileshare_path, stype = seahub_db.get_valid_file_link_by_token(token)
-
-    image_path = get_real_path_by_fs_and_req_path(stype, fileshare_path, path)
-
+def share_link_latest_entry(request, thumbnail_info):
+    image_path = thumbnail_info['file_path']
+    repo_id = thumbnail_info['repo_id']
+    size = thumbnail_info['size']
     obj_id = get_file_id_by_path(repo_id, image_path)
     if obj_id:
         thumbnail_file = os.path.join(THUMBNAIL_ROOT, str(size), obj_id)
@@ -168,7 +192,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
     return thumbnail file to web
     """
     thumbnail_file = thumbnail_info['thumbnail_path']
-
+    last_modified = thumbnail_info['last_modified']
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
         if status == 400:
@@ -181,5 +205,6 @@ async def share_link_thumbnail_get(request, thumbnail_info):
     with open(thumbnail_file, 'rb') as f:
         thumbnail = f.read()
         response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
+        response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
         response_body = gen_response_body(thumbnail)
         return response_start, response_body
