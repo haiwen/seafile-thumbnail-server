@@ -1,5 +1,4 @@
 
-
 # content type
 TEXT_CONTENT_TYPE = b'text/plain'
 THUMBNAIL_CONTENT_TYPE = b'image/png'

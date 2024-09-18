@@ -1,2 +1,1 @@
 moviepy==1.0.*
-pyheif==0.8.*

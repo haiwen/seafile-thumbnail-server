@@ -2,7 +2,6 @@ import logging
 import os.path
 import os
 import json
-import posixpath
 import datetime
 from urllib.parse import quote
 
@@ -47,6 +46,7 @@ def gen_text_response(text):
     response_body = gen_response_body(text.encode('utf-8'))
 
     return response_start, response_body
+
 
 async def gen_thumbnail_response(request, thumbnail_info):
     content_type = 'application/json; charset=utf-8'
@@ -94,7 +94,7 @@ def latest_entry(request, thumbnail_info):
     else:
         return None
 
-# @condition(last_modified_func=latest_entry)
+
 async def thumbnail_get(request, thumbnail_info):
     """
     handle thumbnail src from repo file list
@@ -122,23 +122,6 @@ async def thumbnail_get(request, thumbnail_info):
     except:
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(400, err_msg)
-
-
-def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):
-    """ Return the real path of a file.
-
-    The file could be a file in a shared dir or a shared file.
-    """
-
-    if s_type == 'd':
-        if fileshare_path == '/':
-            real_path = req_path
-        else:
-            real_path = posixpath.join(fileshare_path, req_path.lstrip('/'))
-    else:
-        real_path = fileshare_path
-
-    return real_path
 
 
 async def share_link_thumbnail_create(request, thumbnail_info):
@@ -186,7 +169,6 @@ def share_link_latest_entry(request, thumbnail_info):
         return None
 
 
-# @condition(last_modified_func=share_link_latest_entry)
 async def share_link_thumbnail_get(request, thumbnail_info):
     """ handle thumbnail src from dir download link page
 

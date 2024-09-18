@@ -108,7 +108,7 @@ def generate_thumbnail(request, thumbnail_info):
             return (False, 400)
     if filetype == PDF:
         # pdf thumbnails
-        task_id = thumbnail_task_manager.add_pdf_create_task(create_pdf_thumbnails, repo_id, file_id, path,
+        task_id = thumbnail_task_manager.add_pdf_or_psd_create_task(create_pdf_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
         return (task_id, 200)
     if filetype == XMIND:
@@ -119,8 +119,8 @@ def generate_thumbnail(request, thumbnail_info):
     if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
         return (False, 400)
     if fileext.lower() == 'psd':
-        task_id = thumbnail_task_manager.add_image_creat_task(create_psd_thumbnails, repo_id, file_id, path,
-                                                              size, thumbnail_file, file_size)
+        task_id = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
+                                                             size, thumbnail_file, file_size)
         return (task_id, 200)
 
     task_id = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
@@ -139,7 +139,6 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
     except Exception as e:
         logger.warning(e)
         return (False, 500)
-        
 
 
 def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -206,7 +205,6 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
 
 
 def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
-   
     from moviepy.editor import VideoFileClip
     tmp_image_path = os.path.join(
         tempfile.gettempdir(), file_id + '.png')
@@ -216,7 +214,7 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
         urllib.request.urlretrieve(inner_path, tmp_video)
         clip = VideoFileClip(tmp_video)
         clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
-        
+
         ret = _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
         return ret

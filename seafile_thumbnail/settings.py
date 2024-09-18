@@ -46,8 +46,6 @@ THUMBNAIL_EXTENSION = 'jpeg'
 
 # session key
 SESSION_KEY = 'sessionid'
-# seahub settings secret key
-SEAHUB_WEB_SECRET_KEY = 'n*v0=jz-1rz@(4gx^tf%6^e7c&um@2)g-l=3_)t@19a69n1nv6'
 
 JWT_PRIVATE_KEY = "sunyongqiang-jwt"
 

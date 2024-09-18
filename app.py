@@ -1,8 +1,11 @@
 import re
+import logging
 from seafile_thumbnail.http_request import HTTPRequest
 from seafile_thumbnail.http_response import gen_error_response, gen_text_response, thumbnail_get, \
     share_link_thumbnail_create, gen_thumbnail_response, share_link_thumbnail_get
 from seafile_thumbnail.serializers import ThumbnailSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class App:
@@ -17,6 +20,14 @@ class App:
             await send(response_body)
             return
 
+        # serialize check
+        try:
+            serializer = ThumbnailSerializer(request)
+            thumbnail_info = serializer.thumbnail_info
+        except Exception as e:
+            logger.warning(e)
+            thumbnail_info = None
+
         # ========= router=======
         # ------ping
         if request.url in ('ping', 'ping/'):
@@ -26,30 +37,22 @@ class App:
             return
         # ------thumbnail
         elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
             response_start, response_body = await gen_thumbnail_response(
                 request, thumbnail_info)
             await send(response_start)
             await send(response_body)
             return
         elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
             response_start, response_body = await thumbnail_get(request, thumbnail_info)
             await send(response_start)
             await send(response_body)
             return
         elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
             response_start, response_body = await share_link_thumbnail_create(request, thumbnail_info)
             await send(response_start)
             await send(response_body)
             return
         elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
-            serializer = ThumbnailSerializer(request)
-            thumbnail_info = serializer.thumbnail_info
             response_start, response_body = await share_link_thumbnail_get(request, thumbnail_info)
             await send(response_start)
             await send(response_body)

@@ -1,5 +1,4 @@
 import json
-
 import requests
 import logging
 import jwt
@@ -12,8 +11,6 @@ def get_jwt_url(repo_id):
     jwt_url = '%s/api/v2.1/internal/repos/%s/check-thumbnail/' % (
         SEAHUB_SERVICE_URL.rstrip('/'), repo_id)
     return jwt_url
-
-
 
 
 def jwt_permission_check(session_key, repo_id, path):

@@ -27,7 +27,7 @@ class ThumbnailManager(object):
         self.tasks_map[task_id] = task
         return task_id
 
-    def add_pdf_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
+    def add_pdf_or_psd_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.image_queue.put(task_id)
@@ -44,8 +44,7 @@ class ThumbnailManager(object):
     def add_video_task(self, func, repo, file_id, path, size, thumbnail_file):
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, path, size, thumbnail_file))
-
-        self.image_queue.put(task_id)
+        self.video_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id
 
