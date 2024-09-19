@@ -62,6 +62,7 @@ class ThumbnailSerializer(object):
         file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
         last_modified_time = file_obj.mtime
         last_modified = formatdate(int(last_modified_time), usegmt=True)
+        etag = '"' + file_id + '"'
         self.resource = {
             'file_size': file_size,
             'file_id': file_id,
@@ -70,7 +71,8 @@ class ThumbnailSerializer(object):
             'file_name': file_name,
             'thumbnail_dir': thumbnail_dir,
             'thumbnail_path': thumbnail_file,
-            'last_modified': last_modified
+            'last_modified': last_modified,
+            'etag': etag
         }
 
     def get_enable_file_type(self):
