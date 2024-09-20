@@ -1,4 +1,5 @@
 import os
+import sys
 
 PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
@@ -14,6 +15,7 @@ INNER_FILE_SERVER_ROOT = 'http://127.0.0.1:8082'
 SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
+CONF_DIR = '/data/conf/'
 THUMBNAIL_DIR = '/data/seahub-data/thumbnail'
 LOG_DIR = '/data/seahub-data/logs'
 
@@ -47,6 +49,20 @@ THUMBNAIL_EXTENSION = 'jpeg'
 # session key
 SESSION_KEY = 'sessionid'
 
-JWT_PRIVATE_KEY = "sunyongqiang-jwt"
+JWT_PRIVATE_KEY = ""
+
+
+# ======================== local settings ======================== #
+try:
+    from local_settings import *
+except ImportError as e:
+    pass
+
+try:
+    if os.path.exists(CONF_DIR):
+        sys.path.insert(0, CONF_DIR)
+    from seatable_thumbnail_settings import *
+except ImportError as e:
+    pass
 
 
