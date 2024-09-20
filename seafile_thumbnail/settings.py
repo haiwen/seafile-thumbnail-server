@@ -4,9 +4,9 @@ import sys
 PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # environment
-os.environ['CCNET_CONF_DIR'] = '/data/conf'
-os.environ['SEAFILE_CONF_DIR'] = '/opt/seafile-data'
-os.environ['SEAFILE_CENTRAL_CONF_DIR'] = '/data/conf'
+# os.environ['CCNET_CONF_DIR'] = '/data/conf'
+# os.environ['SEAFILE_CONF_DIR'] = '/opt/seafile-data'
+# os.environ['SEAFILE_CENTRAL_CONF_DIR'] = '/data/conf'
 
 
 # url
