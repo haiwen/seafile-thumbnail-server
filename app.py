@@ -25,6 +25,14 @@ class App:
         try:
             serializer = ThumbnailSerializer(request)
             thumbnail_info = serializer.thumbnail_info
+        except AssertionError as e:
+            status_code, msg = e.args
+            response_stat, response_body = gen_error_response(
+                status_code, msg
+            )
+            await send(response_stat)
+            await send(response_body)
+            return
         except Exception as e:
             logger.warning(e)
             thumbnail_info = None

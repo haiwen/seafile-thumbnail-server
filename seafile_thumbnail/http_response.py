@@ -1,4 +1,5 @@
 import logging
+import time
 import os.path
 import os
 import json
@@ -21,7 +22,7 @@ def gen_response_start(status, content_type):
         'status': status,
         'headers': [
             [b'Content-Type', content_type],
-            [b'Cache-Control', b'max-age=604800, public']
+            [b'Cache-Control', b'max-age=604800, private']
         ]
     }
 
@@ -70,6 +71,7 @@ async def gen_thumbnail_response(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            time.sleep(0.2)
     src = get_thumbnail_src(repo_id, size, path)
     result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
@@ -98,6 +100,7 @@ async def thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            time.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()
@@ -118,7 +121,6 @@ async def share_link_thumbnail_create(request, thumbnail_info):
 
     return thumbnail src to web
     """
-
     content_type = 'application/json; charset=utf-8'
     result = {}
     token = thumbnail_info['token']
@@ -135,6 +137,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            time.sleep(0.2)
     src = get_share_link_thumbnail_src(token, size, file_name)
     result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
@@ -163,6 +166,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            time.sleep(0.2)
     
     try:
         with open(thumbnail_file, 'rb') as f:

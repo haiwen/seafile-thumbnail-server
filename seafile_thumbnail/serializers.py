@@ -154,7 +154,7 @@ class ThumbnailSerializer(object):
         permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'])
         if not permission:
             err_msg = "Permission denied."
-            raise AssertionError(400, err_msg)
+            raise AssertionError(403, err_msg)
 
     def jwt_share_permission_check(self):
         success, repo_id, share_path, share_type = jwt_share_link_permission_check(self.session_key, self.params['token'])
@@ -163,4 +163,4 @@ class ThumbnailSerializer(object):
         self.params['share_type'] = share_type
         if not success:
             err_msg = "Permission denied."
-            raise AssertionError(400, err_msg)
+            raise AssertionError(403, err_msg)
