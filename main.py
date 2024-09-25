@@ -1,8 +1,12 @@
 import uvicorn
-
+import logging
+import sys
+import os
 from app import app
 from seafile_thumbnail.task_queue import thumbnail_task_manager
 from threading import Thread
+from seafile_thumbnail.settings import LOG_DIR
+
 
 
 class ThumbnailServer(Thread):
@@ -19,6 +23,15 @@ class ThumbnailServer(Thread):
 
 
 def run_server():
+    log_kw = {
+        'format': '[%(asctime)s] [%(levelname)s] %(message)s',
+        'datefmt': '%m/%d/%Y %H:%M:%S',
+        'level': logging.INFO,
+        'filename': f'{LOG_DIR}/thumbnail.log'
+    }
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR, exist_ok=True)
+    logging.basicConfig(**log_kw)
     thumbnail_server = ThumbnailServer()
     thumbnail_server.run()
 

@@ -61,7 +61,7 @@ except ImportError as e:
 try:
     if os.path.exists(CONF_DIR):
         sys.path.insert(0, CONF_DIR)
-    from seatable_thumbnail_settings import *
+    from seafile_thumbnail_settings import *
 except ImportError as e:
     pass
 
