@@ -11,9 +11,9 @@ from seafile_thumbnail.constants import TEXT_CONTENT_TYPE, THUMBNAIL_CONTENT_TYP
 from seafile_thumbnail.utils import get_thumbnail_src, get_share_link_thumbnail_src
 from seafile_thumbnail.task_queue import thumbnail_task_manager
 
-from seaserv import get_repo, get_file_size, seafile_api, get_file_id_by_path
-
 logger = logging.getLogger(__name__)
+
+TIME_OUT = 30
 
 
 def gen_response_start(status, content_type):
@@ -68,9 +68,12 @@ async def gen_thumbnail_response(request, thumbnail_info):
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
     if not isinstance(task_id, bool):
+        start_time = time.time()
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            if time.time() - start_time > TIME_OUT:
+                return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
     src = get_thumbnail_src(repo_id, size, path)
     result['encoded_thumbnail_src'] = quote(src)
@@ -97,9 +100,13 @@ async def thumbnail_get(request, thumbnail_info):
         if status == 400:
             err_msg = 'Failed to create thumbnail.'
             return gen_error_response(status, err_msg)
+        
+        start_time = time.time()
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            if time.time() - start_time > TIME_OUT:
+                return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
@@ -134,9 +141,12 @@ async def share_link_thumbnail_create(request, thumbnail_info):
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
     if not isinstance(task_id, bool):
+        start_time = time.time()
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            if time.time() - start_time > TIME_OUT:
+                return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
     src = get_share_link_thumbnail_src(token, size, file_name)
     result['encoded_thumbnail_src'] = quote(src)
@@ -158,14 +168,19 @@ async def share_link_thumbnail_get(request, thumbnail_info):
     last_modified = thumbnail_info['last_modified']
     etag = thumbnail_info['etag']
 
+    
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
         if status == 400:
             err_msg = 'Failed to create thumbnail.'
             return gen_error_response(status, err_msg)
+        
+        start_time = time.time()
         while True:
             if thumbnail_task_manager.query_status(task_id)[0]:
                 break
+            if time.time() - start_time > TIME_OUT:
+                return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
     
     try:

@@ -66,7 +66,7 @@ def jwt_share_link_permission_check(session_key, token):
         if success:
             return success, repo_id, share_path, share_type
         else:
-            return False
+            return False, None, None, None
     except Exception as e:
         logger.error(e)
-        return False
+        return False, None, None, None

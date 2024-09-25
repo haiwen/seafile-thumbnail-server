@@ -7,7 +7,7 @@ from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext
 from seafile_thumbnail.utils import get_real_path_by_fs_and_req_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
-from seaserv import get_repo, get_file_id_by_path, seafile_api, get_file_size
+from seaserv import get_repo, seafile_api, get_file_size
 
 
 class ThumbnailSerializer(object):
