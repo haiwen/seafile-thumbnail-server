@@ -114,3 +114,29 @@ def get_thumbnail_src(repo_id, size, path):
 
 def get_share_link_thumbnail_src(token, size, path):
     return posixpath.join("thumbnail", token, str(size), path.lstrip('/'))
+
+
+def normalize_dir_path(path):
+    """Add '/' at the end of directory path if necessary.
+
+    And make sure path starts with '/'
+    """
+
+    path = path.strip('/')
+    if path == '':
+        return '/'
+    else:
+        return '/' + path + '/'
+
+
+def normalize_cache_key(repo_id, path, sessionid):
+    return repo_id + '_' + path + '_' + sessionid
+
+
+def disassemble_cache_key(cache_key):
+    first_index = cache_key.find('_')
+    repo_id = cache_key[:first_index]
+    last_index = cache_key.rfind('_')
+    session_id = cache_key[last_index + 1:]
+    path = cache_key[first_index + 1:last_index]
+    return repo_id, path, session_id
