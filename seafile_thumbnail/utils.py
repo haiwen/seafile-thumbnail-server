@@ -5,6 +5,7 @@ from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG,
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
 
 from seaserv import seafile_api
+from seafobj import fs_mgr
 
 from seafile_thumbnail import settings
 
@@ -129,18 +130,21 @@ def normalize_dir_path(path):
         return '/' + path + '/'
 
 
-def normalize_cache_key(repo_id, path, sessionid):
-    return repo_id + '_' + path + '_' + sessionid
-
-
 def normalize_share_cache_key(token, sessionid):
     return token + '_' + sessionid
 
 
-def disassemble_cache_key(cache_key):
-    first_index = cache_key.find('_')
-    repo_id = cache_key[:first_index]
-    last_index = cache_key.rfind('_')
-    session_id = cache_key[last_index + 1:]
-    path = cache_key[first_index + 1:last_index]
-    return repo_id, path, session_id
+# def get_file_content(repo_id, file_id, limit=-1):
+#     f = fs_mgr.load_seafile(repo_id, 1, obj_id)
+#     content = f.get_content(limit)
+#     return content
+
+def get_file_content_by_obj_id(repo_id, obj_id):
+    if obj_id == '000000000':
+        return ''
+    f = fs_mgr.load_seafile(repo_id, 1, obj_id)
+    b_content = f.get_content()
+    if not b_content.strip():
+        return ''
+    return b_content
+# pdf_file = get_file_content(repo_id, file_id)

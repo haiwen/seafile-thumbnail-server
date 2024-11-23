@@ -6,7 +6,7 @@ from email.utils import formatdate
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
-                                    normalize_cache_key, disassemble_cache_key, normalize_share_cache_key
+                                    normalize_share_cache_key
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
 from seaserv import get_repo, seafile_api, get_file_size
 from seafile_thumbnail.cache import thumbnail_cache

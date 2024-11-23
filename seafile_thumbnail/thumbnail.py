@@ -9,12 +9,11 @@ from io import BytesIO
 from PIL import Image
 
 from seafile_thumbnail import settings
-from seafile_thumbnail.utils import get_inner_path
+from seafile_thumbnail.utils import get_inner_path, get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
 from seafile_thumbnail.task_queue import thumbnail_task_manager
-
 from seaserv import get_repo, get_file_size, seafile_api
 
 try:  # Py2 and Py3 compatibility
@@ -132,7 +131,10 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
     # image thumbnail
     inner_path = get_inner_path(repo_id, file_id, file_name)
     try:
-        image_file = urllib.request.urlopen(inner_path)
+        # image_file = urllib.request.urlopen(inner_path)
+        print(111)
+        image_file = get_file_content_by_obj_id(repo_id, file_id)
+        print(image_file, '----image_file')
         f = BytesIO(image_file.read())
         _create_thumbnail_common(f, thumbnail_file, size)
         return
