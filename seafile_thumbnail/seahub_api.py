@@ -56,7 +56,7 @@ def jwt_share_link_permission_check(session_key, token):
         if response.status_code != 200:
             error_msg = 'Internal Server Error'
             logger.error(error_msg)
-            return False
+            return False, None, None, None
 
         res = json.loads(response.text)
         success = res['success']

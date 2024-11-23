@@ -133,6 +133,10 @@ def normalize_cache_key(repo_id, path, sessionid):
     return repo_id + '_' + path + '_' + sessionid
 
 
+def normalize_share_cache_key(token, sessionid):
+    return token + '_' + sessionid
+
+
 def disassemble_cache_key(cache_key):
     first_index = cache_key.find('_')
     repo_id = cache_key[:first_index]

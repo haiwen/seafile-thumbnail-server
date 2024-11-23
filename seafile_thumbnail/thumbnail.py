@@ -1,8 +1,4 @@
-try:
-    from pillow_heif import register_heif_opener
-    register_heif_opener()
-except ImportError:
-    pass
+import subprocess
 import logging
 import os
 import tempfile
@@ -10,9 +6,7 @@ import timeit
 import zipfile
 import urllib.request, urllib.error, urllib.parse
 from io import BytesIO
-from fitz import open as fitz_open
 from PIL import Image
-
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_inner_path
@@ -27,6 +21,12 @@ try:  # Py2 and Py3 compatibility
     from urllib.request import urlretrieve
 except:
     from urllib.request import urlretrieve
+
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -175,19 +175,34 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return (False, 500)
 
 
+def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
+    with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmpfile:
+        tmpfile.write(pdf_bytes)
+        tmp_file = tmpfile.name
+        command = [
+            'pdftoppm',
+            '-png',
+            '-r', str(dpi),
+            '-f', '1',
+            '-l', '1',
+            '-singlefile', tmp_file,
+            '-o', prefix_path
+        ]
+        try:
+            subprocess.check_output(command)
+        except Exception as e:
+            logger.error(e)
+            return (False, 500)
+
+
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
     inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
-    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id[:8]))
+    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
     pdf_file = urllib.request.urlopen(inner_path)
-    pdf_stream = BytesIO(pdf_file.read())
     try:
-        pdf_doc = fitz_open(stream=pdf_stream)
-        pdf_stream.close()
-        page = pdf_doc[0]
-        pix = page.get_pixmap()
-        pix.save(tmp_path)
-        pdf_doc.close()
+        pdf_bytes_to_images(pdf_file.read(), tmp_path)
+        tmp_path = tmp_path + '.png'
     except Exception as e:
         logger.warning(e)
         return (False, 500)

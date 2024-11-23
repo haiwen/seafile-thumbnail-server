@@ -131,9 +131,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     result = {}
     token = thumbnail_info['token']
     size = thumbnail_info['size']
-    file_name = thumbnail_info['file_name']
-    last_modified = thumbnail_info['last_modified']
-    etag = thumbnail_info['etag']
+    file_path = thumbnail_info['file_path']
 
     task_id, status = generate_thumbnail(request, thumbnail_info)
     if status == 400:
@@ -147,7 +145,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
             if time.time() - start_time > TIME_OUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
-    src = get_share_link_thumbnail_src(token, size, file_name)
+    src = get_share_link_thumbnail_src(token, size, file_path)
     result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
     result_b = str(result).encode('utf-8')

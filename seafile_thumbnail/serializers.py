@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 from email.utils import formatdate
@@ -5,7 +6,7 @@ from email.utils import formatdate
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
-                                    normalize_cache_key, disassemble_cache_key
+                                    normalize_cache_key, disassemble_cache_key, normalize_share_cache_key
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
 from seaserv import get_repo, seafile_api, get_file_size
 from seafile_thumbnail.cache import thumbnail_cache
@@ -153,36 +154,32 @@ class ThumbnailSerializer(object):
 
     def permission_check(self):
         dir_path = normalize_dir_path(os.path.dirname(self.params['file_path']))
-        perm_key = normalize_cache_key(self.params['repo_id'], dir_path, self.session_key)
-        perm_cache = thumbnail_cache.get(perm_key)
-        all_cache = thumbnail_cache.all_cache()
-        last_cache_flag = None
+        perm_key_md5 = hashlib.md5((self.params['repo_id'] + dir_path + self.session_key).encode('utf-8')).hexdigest()
+        perm_cache = thumbnail_cache.get(perm_key_md5)
         if perm_cache:
             return
-        for k, v in all_cache.items():
-            cache_repo_id, cache_path, cache_sessionid = disassemble_cache_key(k)
-            if cache_repo_id != self.params['repo_id']:
-                continue
-            if cache_sessionid != self.session_key:
-                continue
-            if dir_path.startswith(cache_path):
-                return
-            if dir_path == cache_path[:len(dir_path)]:
-                last_cache_flag = k
-                break
         permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'])
         if not permission:
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)
-        thumbnail_cache.set(perm_key, permission)
-        if last_cache_flag:
-            thumbnail_cache.delete(last_cache_flag)
+        thumbnail_cache.set(perm_key_md5, permission)
 
     def jwt_share_permission_check(self):
+        token = self.params['token']
+        sessionid = self.session_key
+        perm_key = normalize_share_cache_key(token, sessionid)
+        perm_cache = thumbnail_cache.get(perm_key)
+        if perm_cache:
+            self.params['repo_id'] = perm_cache[0]
+            self.params['share_path'] = perm_cache[1]
+            self.params['share_type'] = perm_cache[2]
+            return
         success, repo_id, share_path, share_type = jwt_share_link_permission_check(self.session_key, self.params['token'])
-        self.params['repo_id'] = repo_id
-        self.params['share_path'] = share_path
-        self.params['share_type'] = share_type
         if not success:
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)
+        share_cache_value = (repo_id, share_path, share_type)
+        self.params['repo_id'] = repo_id
+        self.params['share_path'] = share_path
+        self.params['share_type'] = share_type
+        thumbnail_cache.set(perm_key, share_cache_value)

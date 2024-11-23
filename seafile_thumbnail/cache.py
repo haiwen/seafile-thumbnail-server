@@ -1,12 +1,14 @@
 import time
+import threading
 from collections import OrderedDict
 
 
 class MemoryCache:
-    def __init__(self, max_size=100, expiration=3600):
+    def __init__(self, max_size=10000, expiration=3600):
         self.cache = OrderedDict()
         self.max_size = max_size
         self.expiration = expiration
+        self._lock = threading.Lock()
 
     def get(self, key):
         if key in self.cache:
@@ -16,24 +18,21 @@ class MemoryCache:
                 self.cache.move_to_end(key)
                 return value
             else:
-                del self.cache[key]
+                with self._lock:
+                    del self.cache[key]
         return None
 
     def set(self, key, value):
-        if len(self.cache) >= self.max_size:
-            self.cache.popitem(last=False)
-        self.cache[key] = (value, time.time())
-        self.cache.move_to_end(key)
+        with self._lock:
+            if len(self.cache) >= self.max_size:
+                self.cache.popitem(last=False)
+            self.cache[key] = (value, time.time())
+            self.cache.move_to_end(key)
 
     def delete(self, key):
-        if key in self.cache:
-            del self.cache[key]
-
-    def clear(self):
-        self.cache.clear()
-
-    def size(self):
-        return len(self.cache)
+        with self._lock:
+            if key in self.cache:
+                del self.cache[key]
 
     def all_cache(self):
         return self.cache
