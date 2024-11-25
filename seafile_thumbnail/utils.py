@@ -1,13 +1,9 @@
 import os
-import urllib.parse
 import posixpath
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
 
-from seaserv import seafile_api
 from seafobj import fs_mgr
-
-from seafile_thumbnail import settings
 
 PREVIEW_FILEEXT = {
     IMAGE: ('gif', 'jpeg', 'jpg', 'png', 'ico', 'bmp', 'tif', 'tiff', 'psd', 'webp', 'jfif', 'heic'),
@@ -62,21 +58,6 @@ def get_file_type_and_ext(filename):
         return (filetype, fileExt)
     else:
         return ('Unknown', fileExt)
-
-
-def get_inner_path(repo_id, file_id, file_name, file_type=None):
-    if file_type == IMAGE:
-        token = seafile_api.get_fileserver_access_token(
-            repo_id, file_id, 'view', '', use_onetime=True)
-    else:
-        token = seafile_api.get_fileserver_access_token(
-            repo_id, file_id, 'view', '', use_onetime=False)
-    if not token:
-        raise ValueError(404, 'token not found.')
-    inner_path = '%s/files/%s/%s' % (
-        settings.INNER_FILE_SERVER_ROOT.rstrip('/'), token, urllib.parse.quote(file_name))
-
-    return inner_path
 
 
 def get_real_path_by_fs_and_req_path(s_type, fileshare_path, req_path):

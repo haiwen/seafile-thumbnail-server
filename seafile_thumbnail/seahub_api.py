@@ -2,14 +2,14 @@ import json
 import requests
 import logging
 import jwt
-from seafile_thumbnail.settings import SEAHUB_SERVICE_URL, JWT_PRIVATE_KEY
+from seafile_thumbnail.settings import SEAHUB_INNER_SERVICE_URL, JWT_PRIVATE_KEY
 
 logger = logging.getLogger(__name__)
 
 
 def get_jwt_url(repo_id):
     jwt_url = '%s/api/v2.1/internal/repos/%s/check-thumbnail/' % (
-        SEAHUB_SERVICE_URL.rstrip('/'), repo_id)
+        SEAHUB_INNER_SERVICE_URL.rstrip('/'), repo_id)
     return jwt_url
 
 
@@ -41,7 +41,7 @@ def jwt_permission_check(session_key, repo_id, path):
 
 
 def jwt_share_link_permission_check(session_key, token):
-    jwt_url = '%s/api/v2.1/internal/check-share-link-thumbnail/' % SEAHUB_SERVICE_URL.rstrip('/')
+    jwt_url = '%s/api/v2.1/internal/check-share-link-thumbnail/' % SEAHUB_INNER_SERVICE_URL.rstrip('/')
     
     payload = {
         'is_internal': True

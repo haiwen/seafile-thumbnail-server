@@ -4,12 +4,11 @@ import os
 import tempfile
 import timeit
 import zipfile
-import urllib.request, urllib.error, urllib.parse
 from io import BytesIO
 from PIL import Image
 
 from seafile_thumbnail import settings
-from seafile_thumbnail.utils import get_inner_path, get_file_content_by_obj_id
+from seafile_thumbnail.utils import get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
