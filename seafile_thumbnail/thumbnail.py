@@ -123,19 +123,15 @@ def generate_thumbnail(request, thumbnail_info):
         return (task_id, 200)
 
     task_id = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
-                                                          thumbnail_file, file_name, size)
+                                                          thumbnail_file, size)
     return (task_id, 200)
 
 
-def create_image_thumbnail(repo_id, file_id, thumbnail_file, file_name, size):
+def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
     # image thumbnail
-    inner_path = get_inner_path(repo_id, file_id, file_name)
     try:
-        # image_file = urllib.request.urlopen(inner_path)
-        print(111)
         image_file = get_file_content_by_obj_id(repo_id, file_id)
-        print(image_file, '----image_file')
-        f = BytesIO(image_file.read())
+        f = BytesIO(image_file)
         _create_thumbnail_common(f, thumbnail_file, size)
         return
     except Exception as e:
@@ -153,16 +149,12 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
 
     tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
     t1 = timeit.default_timer()
-
-    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
-
-    tmp_file = os.path.join(tempfile.gettempdir(), file_id)
-    urlretrieve(inner_path, tmp_file)
-    psd = PSDImage.open(tmp_file)
+    tmp_file = get_file_content_by_obj_id(repo_id, file_id)
+    f = BytesIO(tmp_file)
+    psd = PSDImage.open(f)
 
     merged_image = psd.topil()
     merged_image.save(tmp_img_path)
-    os.unlink(tmp_file)  # remove origin psd file
 
     t2 = timeit.default_timer()
     logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
@@ -199,11 +191,10 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
-    inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
     tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
-    pdf_file = urllib.request.urlopen(inner_path)
+    image_file = get_file_content_by_obj_id(repo_id, file_id)
     try:
-        pdf_bytes_to_images(pdf_file.read(), tmp_path)
+        pdf_bytes_to_images(image_file, tmp_path)
         tmp_path = tmp_path + '.png'
     except Exception as e:
         logger.warning(e)
@@ -226,9 +217,7 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
     tmp_image_path = os.path.join(
         tempfile.gettempdir(), file_id + '.png')
     try:
-        tmp_video = os.path.join(tempfile.gettempdir(), file_id)
-        inner_path = get_inner_path(repo_id, file_id, os.path.basename(path))
-        urllib.request.urlretrieve(inner_path, tmp_video)
+        tmp_video = get_file_content_by_obj_id(repo_id, file_id)
         clip = VideoFileClip(tmp_video)
         clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
 
@@ -267,14 +256,9 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
 
 
 def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
-    # get inner path
-    file_name = os.path.basename(path)
     file_id = seafile_api.get_file_id_by_path(repo_id, path)
-    inner_path = get_inner_path(repo_id, file_id, file_name)
-
-    # extract xmind image
-    xmind_file = urllib.request.urlopen(inner_path)
-    xmind_file_str = BytesIO(xmind_file.read())
+    xmind_file = get_file_content_by_obj_id(repo_id, file_id)
+    xmind_file_str = BytesIO(xmind_file)
     try:
         xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
     except Exception as e:

@@ -21,6 +21,8 @@ PREVIEW_FILEEXT = {
     XMIND: ('xmind',),
     SEADOC: ('sdoc',),
 }
+ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
+
 
 
 def gen_fileext_type_map():
@@ -134,17 +136,11 @@ def normalize_share_cache_key(token, sessionid):
     return token + '_' + sessionid
 
 
-# def get_file_content(repo_id, file_id, limit=-1):
-#     f = fs_mgr.load_seafile(repo_id, 1, obj_id)
-#     content = f.get_content(limit)
-#     return content
-
 def get_file_content_by_obj_id(repo_id, obj_id):
-    if obj_id == '000000000':
+    if obj_id == ZERO_OBJ_ID:
         return ''
     f = fs_mgr.load_seafile(repo_id, 1, obj_id)
     b_content = f.get_content()
     if not b_content.strip():
         return ''
     return b_content
-# pdf_file = get_file_content(repo_id, file_id)
