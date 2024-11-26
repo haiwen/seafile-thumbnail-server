@@ -217,9 +217,12 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
         tempfile.gettempdir(), file_id + '.png')
     try:
         tmp_video = get_file_content_by_obj_id(repo_id, file_id)
-        clip = VideoFileClip(tmp_video)
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmpfile:
+            tmpfile.write(tmp_video)
+            tmpfile.seek(0)
+            tmp_video_path = tmpfile.name
+        clip = VideoFileClip(tmp_video_path)
         clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
-
         ret = _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
         return ret
@@ -228,6 +231,8 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
         return (False, 500)
+    finally:
+        os.remove(tmp_video_path)
 
 
 def _create_thumbnail_common(fp, thumbnail_file, size):
