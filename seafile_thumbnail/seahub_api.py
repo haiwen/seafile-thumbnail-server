@@ -36,7 +36,7 @@ def jwt_permission_check(session_key, repo_id, path):
         else:
             return False
     except Exception as e:
-        logger.error(e)
+        logger.error("Permission verification failed: %s" % e)
         return False
 
 
@@ -68,5 +68,5 @@ def jwt_share_link_permission_check(session_key, token):
         else:
             return False, None, None, None
     except Exception as e:
-        logger.error(e)
+        logger.error("Permission verification failed: %s" % e)
         return False, None, None, None

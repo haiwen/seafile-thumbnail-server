@@ -4,15 +4,15 @@ import os
 from app import app
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
-from seafile_thumbnail.settings import LOG_DIR
+from seafile_thumbnail.settings import LOG_DIR, THREAD_COUNT
 
 
 
 class ThumbnailServer(Thread):
 
-    def __init__(self):
+    def __init__(self, thread_count):
         Thread.__init__(self)
-        thumbnail_task_manager.run()
+        thumbnail_task_manager.run(thread_count)
 
         config = uvicorn.Config(app, port=8001)
         self._server = uvicorn.Server(config)
@@ -31,7 +31,7 @@ def run_server():
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(**log_kw)
-    thumbnail_server = ThumbnailServer()
+    thumbnail_server = ThumbnailServer(THREAD_COUNT)
     thumbnail_server.run()
 
 

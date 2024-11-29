@@ -34,7 +34,7 @@ class App:
             await send(response_body)
             return
         except Exception as e:
-            logger.error(e)
+            logger.error("Failed to init thumbnail information: %s" % e)
             response_stat, response_body = gen_error_response(
                 500, 'Internal Server Error'
             )

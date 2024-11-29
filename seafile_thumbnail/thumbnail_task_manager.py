@@ -120,18 +120,14 @@ class ThumbnailManager(object):
             finally:
                 self.tasks_map.pop(video_id, None)
 
-    def run(self):
-        image_name = 'ImageManager Thread-' + str(1)
-        video_name = 'VideoManager Thread-' + str(2)
-        # for i in range(10):
-        #     image_t = threading.Thread(target=self.handle_image_task, name=image_name+str(i))
-        #     image_t.setDaemon(True)
-        #     image_t.start()
-        #     self.threads.append(image_t)
-        image_t = threading.Thread(target=self.handle_image_task, name=image_name)
-        image_t.setDaemon(True)
-        image_t.start()
-        self.threads.append(image_t)
+    def run(self, thread_count=3):
+        image_name = 'ImageManager Thread-'
+        video_name = 'VideoManager Thread-'
+        for thread_num in thread_count:
+            image_t = threading.Thread(target=self.handle_image_task, name=image_name+str(thread_num))
+            image_t.setDaemon(True)
+            image_t.start()
+            self.threads.append(image_t)
         video_t = threading.Thread(target=self.handle_video_task, name=video_name)
         self.threads.append(video_t)
         video_t.setDaemon(True)

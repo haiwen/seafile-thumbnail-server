@@ -122,13 +122,10 @@ def generate_thumbnail(request, thumbnail_info):
 
 def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
     # image thumbnail
-    try:
-        image_file = get_file_content_by_obj_id(repo_id, file_id)
-        f = BytesIO(image_file)
-        _create_thumbnail_common(f, thumbnail_file, size)
-        return
-    except Exception as e:
-        logger.warning(e)
+    image_file = get_file_content_by_obj_id(repo_id, file_id)
+    f = BytesIO(image_file)
+    _create_thumbnail_common(f, thumbnail_file, size)
+    return
 
 
 def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -137,7 +134,7 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
     except ImportError:
         logger.error("Could not find psd_tools installed. "
                      "Please install by 'pip install psd_tools'")
-        return (False, 500)
+        return
 
     tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
     t1 = timeit.default_timer()
@@ -152,13 +149,13 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
     logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
     try:
-        ret = _create_thumbnail_common(tmp_img_path, thumbnail_file, size)
+        _create_thumbnail_common(tmp_img_path, thumbnail_file, size)
         os.unlink(tmp_img_path)
-        return ret
+        return
     except Exception as e:
         logger.warning(e)
         os.path.exists(tmp_img_path) and os.unlink(tmp_img_path)
-        return (False, 500)
+        return
 
 
 def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
@@ -174,34 +171,26 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
             '-singlefile', tmp_file,
             '-o', prefix_path
         ]
-        try:
-            subprocess.check_output(command)
-        except Exception as e:
-            logger.error(e)
-            return (False, 500)
+        subprocess.check_output(command)
 
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
     tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
     image_file = get_file_content_by_obj_id(repo_id, file_id)
-    try:
-        pdf_bytes_to_images(image_file, tmp_path)
-        tmp_path = tmp_path + '.png'
-    except Exception as e:
-        logger.warning(e)
-        return (False, 500)
+    pdf_bytes_to_images(image_file, tmp_path)
+    tmp_path = tmp_path + '.png'
     t2 = timeit.default_timer()
     logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
     try:
-        ret = _create_thumbnail_common(tmp_path, thumbnail_file, size)
+        _create_thumbnail_common(tmp_path, thumbnail_file, size)
         os.unlink(tmp_path)
-        return ret
+        return
     except Exception as e:
         logger.warning(e)
         os.unlink(tmp_path)
-        return (False, 500)
+        return
 
 
 def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
@@ -216,14 +205,14 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             tmp_video_path = tmpfile.name
         clip = VideoFileClip(tmp_video_path)
         clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
-        ret = _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
+        _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
-        return ret
+        return
     except Exception as e:
         logger.warning(e)
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
-        return (False, 500)
+        return
     finally:
         os.remove(tmp_video_path)
 
@@ -241,7 +230,8 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     width, height = image.size
     image_memory_cost = width * height * 4 / 1024 / 1024
     if image_memory_cost > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
-        return (False, 403)
+        logger.warning('Image memory cost exceeds the limit')
+        return
 
     if image.mode not in ["1", "L", "P", "RGB"]:
         image = image.convert("RGB")
@@ -249,18 +239,15 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     image = get_rotated_image(image)
     image.thumbnail((size, size), Image.Resampling.LANCZOS)
     image.save(thumbnail_file, THUMBNAIL_EXTENSION)
-    return (True, 200)
+    return
 
 
 def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
     file_id = seafile_api.get_file_id_by_path(repo_id, path)
     xmind_file = get_file_content_by_obj_id(repo_id, file_id)
     xmind_file_str = BytesIO(xmind_file)
-    try:
-        xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
-    except Exception as e:
-        logger.error(e)
-        return (False, 500)
+    
+    xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
     extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
     extracted_xmind_image_str = BytesIO(extracted_xmind_image)
 
@@ -270,9 +257,5 @@ def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
         os.makedirs(thumbnail_dir)
     local_xmind_image = os.path.join(thumbnail_dir, file_id)
 
-    try:
-        ret = _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
-        return ret
-    except Exception as e:
-        logger.warning(e)
-        return (False, 500)
+    _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+    return

@@ -42,7 +42,6 @@ class ThumbnailSerializer(object):
             file_path = path
         size = self.params['size']
         repo_id = self.params['repo_id']
-        # file_path = self.params['file_path']
         file_name = os.path.basename(file_path)
         filetype, fileext = get_file_type_and_ext(file_name)
 

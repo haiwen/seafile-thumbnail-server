@@ -49,6 +49,8 @@ THUMBNAIL_EXTENSION = 'jpeg'
 SESSION_KEY = 'sessionid'
 
 JWT_PRIVATE_KEY = ""
+# thread count
+THREAD_COUNT = 3
 
 
 # ======================== local settings ======================== #
