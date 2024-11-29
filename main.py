@@ -1,9 +1,8 @@
 import uvicorn
 import logging
-import sys
 import os
 from app import app
-from seafile_thumbnail.task_queue import thumbnail_task_manager
+from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
 from seafile_thumbnail.settings import LOG_DIR
 

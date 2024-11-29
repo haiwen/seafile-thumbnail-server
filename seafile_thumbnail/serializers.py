@@ -31,14 +31,18 @@ class ThumbnailSerializer(object):
 
     def resource_check(self):
         # get share real path
-        if re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url) or \
-        re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+        file_path = self.params.get('file_path', '')
+        if re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
+            path = get_real_path_by_fs_and_req_path(self.params['share_type'], self.params['share_path'], self.params['file_path'])
+            self.params['share_create_file_path'] = path
+            file_path = path
+        if re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
             path = get_real_path_by_fs_and_req_path(self.params['share_type'], self.params['share_path'], self.params['file_path'])
             self.params['file_path'] = path
-
+            file_path = path
         size = self.params['size']
         repo_id = self.params['repo_id']
-        file_path = self.params['file_path']
+        # file_path = self.params['file_path']
         file_name = os.path.basename(file_path)
         filetype, fileext = get_file_type_and_ext(file_name)
 
@@ -50,6 +54,7 @@ class ThumbnailSerializer(object):
         if repo.encrypted:
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)
+
         file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
         file_id = file_obj.obj_id
         file_size = get_file_size(repo.store_id, repo.version, file_id)
@@ -126,7 +131,6 @@ class ThumbnailSerializer(object):
             token = match.group('token')
             size = match.group('size')
             path = match.group('path')
-
             if not path or '../' in path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)

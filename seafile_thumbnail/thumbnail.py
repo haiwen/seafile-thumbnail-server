@@ -12,13 +12,8 @@ from seafile_thumbnail.utils import get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
-from seafile_thumbnail.task_queue import thumbnail_task_manager
-from seaserv import get_repo, get_file_size, seafile_api
-
-try:  # Py2 and Py3 compatibility
-    from urllib.request import urlretrieve
-except:
-    from urllib.request import urlretrieve
+from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
+from seaserv import seafile_api
 
 try:
     from pillow_heif import register_heif_opener
@@ -89,7 +84,6 @@ def generate_thumbnail(request, thumbnail_info):
     file_id = thumbnail_info['file_id']
     thumbnail_file = thumbnail_info['thumbnail_path']
     path = thumbnail_info['file_path']
-    file_name = thumbnail_info['file_name']
 
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
         return (False, 400)
@@ -135,7 +129,6 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
         return
     except Exception as e:
         logger.warning(e)
-        return (False, 500)
 
 
 def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):

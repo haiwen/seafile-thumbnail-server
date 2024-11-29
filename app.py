@@ -34,9 +34,13 @@ class App:
             await send(response_body)
             return
         except Exception as e:
-            logger.warning(e)
-            thumbnail_info = None
-
+            logger.error(e)
+            response_stat, response_body = gen_error_response(
+                500, 'Internal Server Error'
+            )
+            await send(response_stat)
+            await send(response_body)
+            return
         # ========= router=======
         # ------ping
         if request.url in ('ping', 'ping/'):
