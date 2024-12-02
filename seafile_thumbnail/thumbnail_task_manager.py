@@ -123,7 +123,7 @@ class ThumbnailManager(object):
     def run(self, thread_count=3):
         image_name = 'ImageManager Thread-'
         video_name = 'VideoManager Thread-'
-        for thread_num in thread_count:
+        for thread_num in range(thread_count):
             image_t = threading.Thread(target=self.handle_image_task, name=image_name+str(thread_num))
             image_t.setDaemon(True)
             image_t.start()
