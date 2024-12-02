@@ -1,3 +1,4 @@
+import time
 import json
 import requests
 import logging
@@ -16,7 +17,8 @@ def get_jwt_url(repo_id):
 def jwt_permission_check(session_key, repo_id, path):
     jwt_url = get_jwt_url(repo_id)
     payload = {
-        'is_internal': True
+        'is_internal': True,
+        'exp': int(time.time()) + 300
     }
     jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
     headers = {
@@ -44,7 +46,8 @@ def jwt_share_link_permission_check(session_key, token):
     jwt_url = '%s/api/v2.1/internal/check-share-link-thumbnail/' % SEAHUB_INNER_SERVICE_URL.rstrip('/')
     
     payload = {
-        'is_internal': True
+        'is_internal': True,
+        'exp': int(time.time()) + 300
     }
     jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
     headers = {

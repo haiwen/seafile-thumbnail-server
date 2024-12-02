@@ -93,30 +93,40 @@ def generate_thumbnail(request, thumbnail_info):
     if filetype == VIDEO:
         # video thumbnails
         if ENABLE_VIDEO_THUMBNAIL:
-            task_id = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
+            task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
                                                             thumbnail_file)
+            if status != 200:
+                return (False, status)
             return (task_id, 200)
         else:
             return (False, 400)
     if filetype == PDF:
         # pdf thumbnails
-        task_id = thumbnail_task_manager.add_pdf_or_psd_create_task(create_pdf_thumbnails, repo_id, file_id, path,
+        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_pdf_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
+        if status != 200:
+                return (False, status)
         return (task_id, 200)
     if filetype == XMIND:
-        task_id = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, path, size)
+        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, path, size)
+        if status != 200:
+                return (False, status)
         return (task_id, 200)
 
     # image thumbnails
     if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
         return (False, 400)
     if fileext.lower() == 'psd':
-        task_id = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
+        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
+        if status != 200:
+                return (False, status)
         return (task_id, 200)
 
-    task_id = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
+    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
                                                           thumbnail_file, size)
+    if status != 200:
+        return (False, status)
     return (task_id, 200)
 
 
@@ -228,8 +238,8 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
     # every pixel will cost 4 byte in RGBA mode
     width, height = image.size
-    image_memory_cost = width * height * 4 / 1024 / 1024
-    if image_memory_cost > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
+    thumbnail_image_size = width * height * 4 / 1024 / 1024
+    if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
         logger.warning('Image memory cost exceeds the limit')
         return
 

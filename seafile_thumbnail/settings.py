@@ -50,7 +50,7 @@ SESSION_KEY = 'sessionid'
 
 JWT_PRIVATE_KEY = ""
 # thread count
-THREAD_COUNT = 3
+TASK_WORKERS = 3
 
 
 # ======================== local settings ======================== #

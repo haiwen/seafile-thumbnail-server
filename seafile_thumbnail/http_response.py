@@ -96,7 +96,7 @@ async def thumbnail_get(request, thumbnail_info):
         if status == 400:
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
-        if not (status == 200 and task_id is True):
+        if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
                 if thumbnail_task_manager.query_status(task_id)[0]:
@@ -167,7 +167,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         if status == 400:
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
-        if not (status == 200 and task_id is True):
+        if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
                 if thumbnail_task_manager.query_status(task_id)[0]:
