@@ -11,7 +11,7 @@ PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # url
 URL_PREFIX = '/'
-SEAHUB_INNER_SERVICE_URL = 'http://127.0.0.1:8000'
+INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
 CONF_DIR = '/data/conf/'
