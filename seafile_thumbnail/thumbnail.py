@@ -248,7 +248,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
 
     image = get_rotated_image(image)
     image.thumbnail((size, size), Image.Resampling.LANCZOS)
-    image.save(thumbnail_file, THUMBNAIL_EXTENSION)
+    image.save(thumbnail_file, THUMBNAIL_EXTENSION, icc_profile=image.info.get('icc_profile'))
     return
 
 
