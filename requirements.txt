@@ -1,4 +1,3 @@
-moviepy==1.0.*
 requests==2.32.*
 pillow_heif==0.18.*
 psd-tools==1.10.*

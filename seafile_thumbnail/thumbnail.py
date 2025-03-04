@@ -11,7 +11,7 @@ from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
-    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION
+    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from seaserv import seafile_api
 
@@ -204,7 +204,6 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
 
 
 def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
-    from moviepy.editor import VideoFileClip
     tmp_image_path = os.path.join(
         tempfile.gettempdir(), file_id + '.png')
     try:
@@ -213,8 +212,11 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             tmpfile.write(tmp_video)
             tmpfile.seek(0)
             tmp_video_path = tmpfile.name
-        clip = VideoFileClip(tmp_video_path)
-        clip.save_frame(tmp_image_path, t=settings.THUMBNAIL_VIDEO_FRAME_TIME)
+        try:
+            subprocess.check_output(['ffmpeg', '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), '-vframes', '1', tmp_image_path, '-i', tmp_video_path, '-nostdin'])
+        except Exception as e:
+            logger.error(e)
+            return (False, 500)
         _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
         return
@@ -243,12 +245,15 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
         logger.warning('Image memory cost exceeds the limit')
         return
 
-    if image.mode not in ["1", "L", "P", "RGB"]:
+    if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
         image = image.convert("RGB")
 
     image = get_rotated_image(image)
     image.thumbnail((size, size), Image.Resampling.LANCZOS)
-    image.save(thumbnail_file, THUMBNAIL_EXTENSION, icc_profile=image.info.get('icc_profile'))
+    save_type = THUMBNAIL_EXTENSION
+    if image.mode in ['RGBA', 'P']:
+        save_type = 'png'
+    image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
     return
 
 
