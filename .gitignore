@@ -14,3 +14,7 @@ stats-logs/
 .idea/
 .vscode/
 
+local_settings.py
+local_settings*
+run.sh
+thumbnail.log
