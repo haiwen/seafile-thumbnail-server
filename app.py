@@ -21,6 +21,13 @@ class App:
             await send(response_body)
             return
 
+        # ------ping
+        if request.url in ('ping', 'ping/'):
+            response_stat, response_body = gen_text_response('pong')
+            await send(response_stat)
+            await send(response_body)
+            return
+        
         # serialize check
         try:
             serializer = ThumbnailSerializer(request)
@@ -42,14 +49,8 @@ class App:
             await send(response_body)
             return
         # ========= router=======
-        # ------ping
-        if request.url in ('ping', 'ping/'):
-            response_stat, response_body = gen_text_response('pong')
-            await send(response_stat)
-            await send(response_body)
-            return
         # ------thumbnail
-        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
+        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
             # cache
             try:
                 if cache_check(request, thumbnail_info):
