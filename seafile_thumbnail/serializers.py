@@ -61,7 +61,7 @@ class ThumbnailSerializer(object):
         if filetype not in self.enable_file_type:
             raise AssertionError(400, 'file_type invalid.')
 
-        thumbnail_dir = os.path.join(settings.THUMBNAIL_DIR, str(size))
+        thumbnail_dir = os.path.join(settings.THUMBNAIL_ROOT, str(size))
         thumbnail_file = os.path.join(thumbnail_dir, file_id)
         if not os.path.exists(thumbnail_dir):
             os.makedirs(thumbnail_dir)

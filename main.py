@@ -1,3 +1,4 @@
+import sys
 import uvicorn
 import logging
 import os
@@ -22,12 +23,24 @@ class ThumbnailServer(Thread):
 
 
 def run_server():
-    log_kw = {
-        'format': '[%(asctime)s] [%(levelname)s] %(message)s',
-        'datefmt': '%m/%d/%Y %H:%M:%S',
-        'level': logging.INFO,
-        'filename': f'{LOG_DIR}/thumbnail.log'
-    }
+    seafile_log_to_stdout = os.getenv('SEAFILE_LOG_TO_STDOUT', 'false') == 'true'
+    formatter = '[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s'
+    if seafile_log_to_stdout:
+        formatter = '[thumbnail-server] [%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s'
+        log_kw = {
+            'format': formatter,
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+            'level': logging.INFO,
+            'stream': sys.stdout
+        }
+    else:
+        log_kw = {
+            'format': formatter,
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+            'level': logging.INFO,
+            'filename': f'{LOG_DIR}/thumbnail.log'
+        }
+
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR, exist_ok=True)
     logging.basicConfig(**log_kw)

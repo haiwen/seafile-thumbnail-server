@@ -15,8 +15,8 @@ INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
 CONF_DIR = '/data/conf/'
-THUMBNAIL_DIR = '/data/seahub-data/thumbnail'
-LOG_DIR = '/data/seahub-data/logs'
+LOG_DIR = '.'
+# LOG_DIR = os.path.join(os.path.dirname(PROJECT_ROOT), 'logs') # abs path
 
 # VIDEO thumbnail
 ENABLE_VIDEO_THUMBNAIL = True
