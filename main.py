@@ -19,6 +19,7 @@ class ThumbnailServer(Thread):
         self._server = uvicorn.Server(config)
 
     def run(self):
+        logging.info('Starting seafile thumbnail server...')
         self._server.run()
 
 
