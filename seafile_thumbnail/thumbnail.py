@@ -7,7 +7,6 @@ import zipfile
 from io import BytesIO
 from PIL import Image
 
-from seafile_thumbnail import settings
 from seafile_thumbnail.utils import get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
@@ -216,15 +215,15 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             subprocess.check_output(['ffmpeg', '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), '-vframes', '1', tmp_image_path, '-i', tmp_video_path, '-nostdin'])
         except Exception as e:
             logger.error(e)
-            return (False, 500)
+            return (False, e)
         _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
-        return
+        return (True, None)
     except Exception as e:
         logger.warning(e)
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
-        return
+        return (False, e)
     finally:
         os.remove(tmp_video_path)
 
