@@ -136,12 +136,8 @@ class ThumbnailManager(object):
                 logging.info('Run task: %s' % task_info)
                 start_time = time.time()
                 # run
-                status, message = task[0](*task[1])
-                if status:
-                    self.task_results_map[video_id] = 'success'
-                else:
-                    self.task_results_map[video_id] = f'error_{str(message)}'
-
+                task[0](*task[1])
+                self.task_results_map[video_id] = 'success'
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(video_id, None)

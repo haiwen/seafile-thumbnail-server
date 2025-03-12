@@ -211,21 +211,16 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             tmpfile.write(tmp_video)
             tmpfile.seek(0)
             tmp_video_path = tmpfile.name
-        try:
-            subprocess.check_output(['ffmpeg', '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), '-vframes', '1', tmp_image_path, '-i', tmp_video_path, '-nostdin'])
-        except Exception as e:
-            logger.error(e)
-            return (False, e)
+        subprocess.check_output(['ffmpeg', '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), '-vframes', '1', tmp_image_path, '-i', tmp_video_path, '-nostdin'])
         _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
         os.unlink(tmp_image_path)
-        return (True, None)
+        os.remove(tmp_video_path)
+        return True
     except Exception as e:
-        logger.warning(e)
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
-        return (False, e)
-    finally:
-        os.remove(tmp_video_path)
+            os.remove(tmp_video_path)
+        raise
 
 
 def _create_thumbnail_common(fp, thumbnail_file, size):
