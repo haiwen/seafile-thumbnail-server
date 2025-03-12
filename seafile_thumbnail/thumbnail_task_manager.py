@@ -78,7 +78,7 @@ class ThumbnailManager(object):
         if not self.is_valid_task_id(task_id):
             error = 'task id: %s invalid'% task_id
             logger.warning(error)
-            return False, error
+            return True, error
         task_result = self.task_results_map.pop(task_id, None)
         if task_result == 'success':
             return True, None
