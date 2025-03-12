@@ -103,10 +103,10 @@ async def thumbnail_get(request, thumbnail_info):
         if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
-                status, message = thumbnail_task_manager.query_status(task_id)
+                status, error_msg = thumbnail_task_manager.query_status(task_id)
                 if status:
-                    if message:
-                        return gen_error_response(415, message)
+                    if error_msg:
+                        return gen_error_response(415, error_msg)
                     break
                 if time.time() - start_time > TIME_OUT:
                     return gen_error_response(400, 'Timeout Error.')
@@ -181,10 +181,10 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
-                status, message = thumbnail_task_manager.query_status(task_id)
+                status, error_msg = thumbnail_task_manager.query_status(task_id)
                 if status:
-                    if message:
-                        return gen_error_response(415, message)
+                    if error_msg:
+                        return gen_error_response(415, error_msg)
                     break
                 if time.time() - start_time > TIME_OUT:
                     return gen_error_response(400, 'Timeout Error.')
