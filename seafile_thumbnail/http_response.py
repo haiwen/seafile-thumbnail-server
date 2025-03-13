@@ -65,16 +65,20 @@ async def gen_thumbnail_response(request, thumbnail_info):
     if status == 400:
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
+    src = get_thumbnail_src(repo_id, size, path)
+    result['encoded_thumbnail_src'] = quote(src)
     if not isinstance(task_id, bool):
         start_time = time.time()
         while True:
-            if thumbnail_task_manager.query_status(task_id)[0]:
+            success, error_msg = thumbnail_task_manager.query_status(task_id)
+            if success:
+                if error_msg:
+                    result['encoded_thumbnail_src'] = ''
                 break
             if time.time() - start_time > TIME_OUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
-    src = get_thumbnail_src(repo_id, size, path)
-    result['encoded_thumbnail_src'] = quote(src)
+
     result = json.dumps(result)
     result_b = str(result).encode('utf-8')
 
@@ -99,7 +103,10 @@ async def thumbnail_get(request, thumbnail_info):
         if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
-                if thumbnail_task_manager.query_status(task_id)[0]:
+                status, error_msg = thumbnail_task_manager.query_status(task_id)
+                if status:
+                    if error_msg:
+                        return gen_error_response(415, error_msg)
                     break
                 if time.time() - start_time > TIME_OUT:
                     return gen_error_response(400, 'Timeout Error.')
@@ -135,16 +142,20 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     if status == 400:
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
+    
+    src = get_share_link_thumbnail_src(token, size, file_path)
+    result['encoded_thumbnail_src'] = quote(src)
     if not isinstance(task_id, bool):
         start_time = time.time()
         while True:
-            if thumbnail_task_manager.query_status(task_id)[0]:
+            success, error_msg = thumbnail_task_manager.query_status(task_id)
+            if success:
+                if error_msg:
+                    result['encoded_thumbnail_src'] = ''
                 break
             if time.time() - start_time > TIME_OUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
-    src = get_share_link_thumbnail_src(token, size, file_path)
-    result['encoded_thumbnail_src'] = quote(src)
     result = json.dumps(result)
     result_b = str(result).encode('utf-8')
     response_start = gen_response_start(200, content_type)
@@ -170,7 +181,10 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         if not isinstance(task_id, bool):
             start_time = time.time()
             while True:
-                if thumbnail_task_manager.query_status(task_id)[0]:
+                status, error_msg = thumbnail_task_manager.query_status(task_id)
+                if status:
+                    if error_msg:
+                        return gen_error_response(415, error_msg)
                     break
                 if time.time() - start_time > TIME_OUT:
                     return gen_error_response(400, 'Timeout Error.')

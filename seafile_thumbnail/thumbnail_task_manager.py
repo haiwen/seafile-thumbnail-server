@@ -76,8 +76,9 @@ class ThumbnailManager(object):
 
     def query_status(self, task_id):
         if not self.is_valid_task_id(task_id):
-            logger.warning('task id: %s invalid'% task_id)
-            return False, None
+            error = 'task id: %s invalid'% task_id
+            logger.warning(error)
+            return True, error
         task_result = self.task_results_map.pop(task_id, None)
         if task_result == 'success':
             return True, None
@@ -137,7 +138,6 @@ class ThumbnailManager(object):
                 # run
                 task[0](*task[1])
                 self.task_results_map[video_id] = 'success'
-
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(video_id, None)
