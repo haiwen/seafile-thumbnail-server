@@ -58,5 +58,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Seafile Thumbnail Server')
     parser.add_argument('--loglevel', type=str, default='info', help='log level')
     args = parser.parse_args()
-    print(args.loglevel)
     run_server(args.loglevel)

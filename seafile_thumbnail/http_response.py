@@ -32,7 +32,7 @@ def gen_response_error_start(status, content_type):
         'status': status,
         'headers': [
             [b'Content-Type', content_type],
-            [b'Cache-Control', b'no-cache']
+            [b'Cache-Control', b'no-store']
         ]
     }
 
