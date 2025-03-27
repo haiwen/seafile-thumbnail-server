@@ -31,7 +31,7 @@ class ThumbnailManager(object):
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
-            return ('thumbnail server busy.', 400)
+            return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, thumbnail_file, size))
         self.image_queue.put(task_id)
@@ -43,7 +43,7 @@ class ThumbnailManager(object):
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
-            return ('thumbnail server busy.', 400)
+            return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.image_queue.put(task_id)
@@ -55,7 +55,7 @@ class ThumbnailManager(object):
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
-            return ('thumbnail server busy.', 400)
+            return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, path, size))
         self.image_queue.put(task_id)
@@ -67,7 +67,7 @@ class ThumbnailManager(object):
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
-            return ('thumbnail server busy.', 400)
+            return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, path, size, thumbnail_file))
         self.video_queue.put(task_id)
@@ -112,7 +112,6 @@ class ThumbnailManager(object):
                 self.current_task_info.pop(image_id, None)
             except Exception as e:
                 self.task_results_map[image_id] = 'error_' + str(e.args[0])
-                logger.exception(e)
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(image_id, None)
             finally:
@@ -143,7 +142,6 @@ class ThumbnailManager(object):
                 self.current_task_info.pop(video_id, None)
             except Exception as e:
                 self.task_results_map[video_id] = 'error_' + str(e.args[0])
-                logger.exception(e)
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(video_id, None)
             finally:

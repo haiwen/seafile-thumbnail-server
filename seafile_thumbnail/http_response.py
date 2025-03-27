@@ -26,6 +26,12 @@ def gen_response_start(status, content_type):
         ]
     }
 
+def gen_response_error_start(status):
+    return {
+        'type': 'http.response.error',
+        'status': status,
+    }
+
 
 def gen_response_body(body):
     return {
@@ -35,7 +41,7 @@ def gen_response_body(body):
 
 
 def gen_error_response(status, error_msg):
-    response_start = gen_response_start(status, TEXT_CONTENT_TYPE)
+    response_start = gen_response_error_start(status)
     response_body = gen_response_body(error_msg.encode('utf-8'))
 
     return response_start, response_body
