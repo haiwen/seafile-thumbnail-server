@@ -91,41 +91,38 @@ def generate_thumbnail(request, thumbnail_info):
 
     if filetype == VIDEO:
         # video thumbnails
-        if ENABLE_VIDEO_THUMBNAIL:
-            task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
-                                                            thumbnail_file)
-            if status != 200:
-                return (False, status)
-            return (task_id, 200)
-        else:
-            return (False, 400)
+        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
+                                                        thumbnail_file)
+        if status != 200:
+            return (task_id, status)
+        return (task_id, 200)
     if filetype == PDF:
         # pdf thumbnails
         task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_pdf_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
         if status != 200:
-                return (False, status)
+                return (task_id, status)
         return (task_id, 200)
     if filetype == XMIND:
         task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, path, size)
         if status != 200:
-                return (False, status)
+                return (task_id, status)
         return (task_id, 200)
 
     # image thumbnails
     if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
-        return (False, 400)
+        return ('The image size exceeds the limit', 400)
     if fileext.lower() == 'psd':
         task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
         if status != 200:
-                return (False, status)
+                return (task_id, status)
         return (task_id, 200)
 
     task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
                                                           thumbnail_file, size)
     if status != 200:
-        return (False, status)
+        return (task_id, status)
     return (task_id, 200)
 
 

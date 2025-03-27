@@ -2,6 +2,7 @@ import sys
 import uvicorn
 import logging
 import os
+import argparse
 from app import app
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
@@ -23,7 +24,11 @@ class ThumbnailServer(Thread):
         self._server.run()
 
 
-def run_server():
+def run_server(loglevel='info'):
+    level = logging.INFO
+    if loglevel == 'debug':
+        level = logging.DEBUG
+
     seafile_log_to_stdout = os.getenv('SEAFILE_LOG_TO_STDOUT', 'false') == 'true'
     formatter = '[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s'
     if seafile_log_to_stdout:
@@ -31,14 +36,14 @@ def run_server():
         log_kw = {
             'format': formatter,
             'datefmt': '%Y-%m-%d %H:%M:%S',
-            'level': logging.INFO,
+            'level': level,
             'stream': sys.stdout
         }
     else:
         log_kw = {
             'format': formatter,
             'datefmt': '%Y-%m-%d %H:%M:%S',
-            'level': logging.INFO,
+            'level': level,
             'filename': f'{LOG_DIR}/thumbnail.log'
         }
 
@@ -50,4 +55,8 @@ def run_server():
 
 
 if __name__ == '__main__':
-    run_server()
+    parser = argparse.ArgumentParser(description='Seafile Thumbnail Server')
+    parser.add_argument('--loglevel', type=str, default='info', help='log level')
+    args = parser.parse_args()
+    print(args.loglevel)
+    run_server(args.loglevel)

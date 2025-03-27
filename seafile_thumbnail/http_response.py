@@ -26,10 +26,14 @@ def gen_response_start(status, content_type):
         ]
     }
 
-def gen_response_error_start(status):
+def gen_response_error_start(status, content_type):
     return {
-        'type': 'http.response.error',
+        'type': 'http.response.start',
         'status': status,
+        'headers': [
+            [b'Content-Type', content_type],
+            [b'Cache-Control', b'no-cache']
+        ]
     }
 
 
@@ -41,9 +45,11 @@ def gen_response_body(body):
 
 
 def gen_error_response(status, error_msg):
-    response_start = gen_response_error_start(status)
-    response_body = gen_response_body(error_msg.encode('utf-8'))
-
+    response_start = gen_response_error_start(status, TEXT_CONTENT_TYPE)
+    error_body = {
+        'error': error_msg
+    }
+    response_body = gen_response_body(json.dumps(error_body).encode('utf-8'))
     return response_start, response_body
 
 
@@ -60,6 +66,13 @@ def gen_cache_response():
 
     return response_start, response_body
 
+def generate_json_response(result, status=200, content_type='application/json; charset=utf-8'):
+    """generate json response"""
+    result_json = json.dumps(result)
+    response_start = gen_response_start(status, content_type)
+    response_body = gen_response_body(result_json.encode('utf-8'))
+    return response_start, response_body
+
 
 async def gen_thumbnail_response(request, thumbnail_info):
     content_type = 'application/json; charset=utf-8'
@@ -68,9 +81,14 @@ async def gen_thumbnail_response(request, thumbnail_info):
     size = thumbnail_info['size']
     path = thumbnail_info['file_path']
     task_id, status = generate_thumbnail(request, thumbnail_info)
-    if status == 400:
+    if status >= 500:
+        logger.error(task_id)
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
+    if status == 400:
+        result['encoded_thumbnail_src'] = ''
+        return generate_json_response(result)
+    
     src = get_thumbnail_src(repo_id, size, path)
     result['encoded_thumbnail_src'] = quote(src)
     if not isinstance(task_id, bool):
@@ -85,12 +103,7 @@ async def gen_thumbnail_response(request, thumbnail_info):
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
 
-    result = json.dumps(result)
-    result_b = str(result).encode('utf-8')
-
-    response_start = gen_response_start(200, content_type)
-    response_body = gen_response_body(result_b)
-    return response_start, response_body
+    return generate_json_response(result)
 
 
 async def thumbnail_get(request, thumbnail_info):
@@ -103,7 +116,8 @@ async def thumbnail_get(request, thumbnail_info):
     etag = thumbnail_info['etag']
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
-        if status == 400:
+        if status >= 500:
+            logger.error(task_id)
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
         if not isinstance(task_id, bool):
@@ -145,9 +159,13 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     file_path = thumbnail_info['file_path']
 
     task_id, status = generate_thumbnail(request, thumbnail_info)
-    if status == 400:
+    if status >= 500:
+        logger.error(task_id)
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
+    if status == 400:
+        result['encoded_thumbnail_src'] = ''
+        return generate_json_response(result)
     
     src = get_share_link_thumbnail_src(token, size, file_path)
     result['encoded_thumbnail_src'] = quote(src)
@@ -162,11 +180,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
             if time.time() - start_time > TIME_OUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
-    result = json.dumps(result)
-    result_b = str(result).encode('utf-8')
-    response_start = gen_response_start(200, content_type)
-    response_body = gen_response_body(result_b)
-    return response_start, response_body
+    return generate_json_response(result)
 
 
 async def share_link_thumbnail_get(request, thumbnail_info):
@@ -181,7 +195,8 @@ async def share_link_thumbnail_get(request, thumbnail_info):
     
     if not os.path.exists(thumbnail_file):
         task_id, status = generate_thumbnail(request, thumbnail_info)
-        if status == 400:
+        if status != 200:
+            logger.error(task_id)
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
         if not isinstance(task_id, bool):

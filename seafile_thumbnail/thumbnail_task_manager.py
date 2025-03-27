@@ -102,6 +102,9 @@ class ThumbnailManager(object):
             try:
                 self.current_task_info[image_id] = task_info
                 logging.info('Run task: %s' % task_info)
+                logging.debug('Thread name: %s, threads is_alive: %s image_queue: %s image_queue size: %d, tasks_map: %s, task_results_map: %s'
+                            % (threading.current_thread().name, self.threads_is_alive(), self.image_queue.queue, self.image_queue.qsize(),
+                            self.tasks_map, self.task_results_map))
                 start_time = time.time()
                 # run
                 task[0](*task[1])
@@ -133,6 +136,8 @@ class ThumbnailManager(object):
             try:
                 self.current_task_info[video_id] = task_info
                 logging.info('Run task: %s' % task_info)
+                logging.debug('Thread name: %s, threads is_alive: %s video_queue: %s video_queue size: %d'
+                            % (threading.current_thread().name, self.threads_is_alive(), self.video_queue.queue, self.video_queue.qsize()))
                 start_time = time.time()
                 # run
                 task[0](*task[1])
