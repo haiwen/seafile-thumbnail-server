@@ -80,9 +80,9 @@ async def gen_thumbnail_response(request, thumbnail_info):
     repo_id = thumbnail_info['repo_id']
     size = thumbnail_info['size']
     path = thumbnail_info['file_path']
-    task_id, status = generate_thumbnail(request, thumbnail_info)
+    task_result, status = generate_thumbnail(request, thumbnail_info)
     if status >= 500:
-        logger.error(task_id)
+        logger.error(task_result)
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
     if status == 400:
@@ -91,10 +91,10 @@ async def gen_thumbnail_response(request, thumbnail_info):
     
     src = get_thumbnail_src(repo_id, size, path)
     result['encoded_thumbnail_src'] = quote(src)
-    if not isinstance(task_id, bool):
+    if not isinstance(task_result, bool):
         start_time = time.time()
         while True:
-            success, error_msg = thumbnail_task_manager.query_status(task_id)
+            success, error_msg = thumbnail_task_manager.query_status(task_result)
             if success:
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
@@ -103,7 +103,7 @@ async def gen_thumbnail_response(request, thumbnail_info):
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
 
-    return generate_json_response(result)
+    return generate_json_response(result, status, content_type)
 
 
 async def thumbnail_get(request, thumbnail_info):
@@ -115,15 +115,15 @@ async def thumbnail_get(request, thumbnail_info):
     last_modified = thumbnail_info['last_modified']
     etag = thumbnail_info['etag']
     if not os.path.exists(thumbnail_file):
-        task_id, status = generate_thumbnail(request, thumbnail_info)
+        task_result, status = generate_thumbnail(request, thumbnail_info)
         if status >= 500:
-            logger.error(task_id)
+            logger.error(task_result)
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
-        if not isinstance(task_id, bool):
+        if not isinstance(task_result, bool):
             start_time = time.time()
             while True:
-                status, error_msg = thumbnail_task_manager.query_status(task_id)
+                status, error_msg = thumbnail_task_manager.query_status(task_result)
                 if status:
                     if error_msg:
                         return gen_error_response(415, error_msg)
@@ -158,9 +158,9 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     size = thumbnail_info['size']
     file_path = thumbnail_info['file_path']
 
-    task_id, status = generate_thumbnail(request, thumbnail_info)
+    task_result, status = generate_thumbnail(request, thumbnail_info)
     if status >= 500:
-        logger.error(task_id)
+        logger.error(task_result)
         err_msg = 'Failed to create thumbnail.'
         return gen_error_response(status, err_msg)
     if status == 400:
@@ -169,10 +169,10 @@ async def share_link_thumbnail_create(request, thumbnail_info):
     
     src = get_share_link_thumbnail_src(token, size, file_path)
     result['encoded_thumbnail_src'] = quote(src)
-    if not isinstance(task_id, bool):
+    if not isinstance(task_result, bool):
         start_time = time.time()
         while True:
-            success, error_msg = thumbnail_task_manager.query_status(task_id)
+            success, error_msg = thumbnail_task_manager.query_status(task_result)
             if success:
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
@@ -180,7 +180,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
             if time.time() - start_time > TIME_OUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
-    return generate_json_response(result)
+    return generate_json_response(result, status, content_type)
 
 
 async def share_link_thumbnail_get(request, thumbnail_info):
@@ -194,15 +194,15 @@ async def share_link_thumbnail_get(request, thumbnail_info):
 
     
     if not os.path.exists(thumbnail_file):
-        task_id, status = generate_thumbnail(request, thumbnail_info)
+        task_result, status = generate_thumbnail(request, thumbnail_info)
         if status != 200:
-            logger.error(task_id)
+            logger.error(task_result)
             err_msg = 'Failed to get thumbnail.'
             return gen_error_response(status, err_msg)
-        if not isinstance(task_id, bool):
+        if not isinstance(task_result, bool):
             start_time = time.time()
             while True:
-                status, error_msg = thumbnail_task_manager.query_status(task_id)
+                status, error_msg = thumbnail_task_manager.query_status(task_result)
                 if status:
                     if error_msg:
                         return gen_error_response(415, error_msg)
