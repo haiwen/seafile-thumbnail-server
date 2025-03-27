@@ -132,6 +132,8 @@ def generate_thumbnail(request, thumbnail_info):
 def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
     # image thumbnail
     image_file = get_file_content_by_obj_id(repo_id, file_id)
+    if image_file == b'':
+        raise Exception('Image file is empty')
     f = BytesIO(image_file)
     _create_thumbnail_common(f, thumbnail_file, size)
     return
@@ -207,20 +209,29 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
         tempfile.gettempdir(), file_id + '.png')
     try:
         tmp_video = get_file_content_by_obj_id(repo_id, file_id)
+        if tmp_video == b'':
+            raise Exception('Video file is empty')
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmpfile:
             tmpfile.write(tmp_video)
             tmpfile.seek(0)
             tmp_video_path = tmpfile.name
-        subprocess.check_output(['ffmpeg', '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), '-vframes', '1', tmp_image_path, '-i', tmp_video_path, '-nostdin'])
-        _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
-        os.unlink(tmp_image_path)
-        os.remove(tmp_video_path)
-        return True
+        
+        subprocess.check_output(['ffmpeg', '-i', tmp_video_path, '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), 
+                               '-vframes', '1', '-nostdin', tmp_image_path])
+        
+        if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
+            _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
+            os.unlink(tmp_image_path)
+            os.remove(tmp_video_path)
+            return True
+        else:
+            raise Exception("The video duration is relatively short")
+            
     except Exception as e:
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
             os.remove(tmp_video_path)
-        raise
+        raise e
 
 
 def _create_thumbnail_common(fp, thumbnail_file, size):

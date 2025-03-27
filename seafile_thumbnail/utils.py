@@ -119,9 +119,9 @@ def normalize_share_cache_key(token, sessionid):
 
 def get_file_content_by_obj_id(repo_id, obj_id):
     if obj_id == ZERO_OBJ_ID:
-        return ''
+        return b''
     f = fs_mgr.load_seafile(repo_id, 1, obj_id)
     b_content = f.get_content()
     if not b_content.strip():
-        return ''
+        return b''
     return b_content
