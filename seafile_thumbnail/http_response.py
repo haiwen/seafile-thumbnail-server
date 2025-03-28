@@ -137,7 +137,6 @@ async def thumbnail_get(request, thumbnail_info):
             response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
             response_body = gen_response_body(thumbnail)
             if thumbnail:
-                response_start['headers'].append([b'Cache-Control', b'max-age=604800, private'])
                 response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
                 response_start['headers'].append([b'ETag', etag.encode('utf-8')])
 
@@ -214,7 +213,6 @@ async def share_link_thumbnail_get(request, thumbnail_info):
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()
             response_start = gen_response_start(200, 'image/' + THUMBNAIL_EXTENSION)
-            response_start['headers'].append([b'Cache-Control', b'max-age=604800, private'])
             response_start['headers'].append([b'ETag', etag.encode('utf-8')])
             response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
             response_body = gen_response_body(thumbnail)
