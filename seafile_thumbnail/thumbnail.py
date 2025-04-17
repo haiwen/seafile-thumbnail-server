@@ -131,9 +131,13 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
     image_file = get_file_content_by_obj_id(repo_id, file_id)
     if image_file == b'':
         raise Exception('Image file is empty')
-    f = BytesIO(image_file)
-    _create_thumbnail_common(f, thumbnail_file, size)
-    return
+    try:
+        f = BytesIO(image_file)
+        _create_thumbnail_common(f, thumbnail_file, size)
+        return True
+    except Exception as e:
+        logger.error(e)
+        raise Exception('Failed to create image thumbnail')
 
 
 def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):

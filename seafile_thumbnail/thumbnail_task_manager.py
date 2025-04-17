@@ -16,6 +16,7 @@ class ThumbnailManager(object):
         self.video_queue = queue.Queue(32)
         self.current_task_info = {}
         self.threads = []
+        self._lock = threading.Lock() # protect the task_results_map and tasks_map
 
     def is_valid_task_id(self, task_id):
         return task_id in (self.tasks_map.keys() | self.task_results_map.keys())
@@ -25,18 +26,60 @@ class ThumbnailManager(object):
         for t in self.threads:
             info[t.name] = t.is_alive()
         return info
+    
+    def check_and_restart_threads(self):
+        """monitor the thread status and restart the dead threads"""
+        logger.info("thread monitor started")
+        while True:
+            try:
+                # check the thread status
+                dead_threads = []
+                for i, thread in enumerate(self.threads):
+                    if not thread.is_alive():
+                        logger.warning(f"detected thread {thread.name} is dead, preparing to restart")
+                        dead_threads.append((i, thread))
+                
+                # restart the dead threads
+                for i, thread in dead_threads:
+                    if thread.name.startswith('ImageManager'):
+                        new_thread = threading.Thread(
+                            target=self.handle_image_task, 
+                            name=thread.name
+                        )
+                    else:  # VideoManager
+                        new_thread = threading.Thread(
+                            target=self.handle_video_task, 
+                            name=thread.name
+                        )
+                    
+                    new_thread.setDaemon(True)
+                    new_thread.start()
+                    
+                    self.threads[i] = new_thread
+                    
+                    logger.info(f"thread {thread.name} restarted")
+                    
+            except Exception as e:
+                logger.error(f"thread monitor error: {str(e)}")
+            
+            time.sleep(30)
 
     def add_image_creat_task(self, func, repo, file_id, thumbnail_file, size):
-        if self.image_queue.full():
-            logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
+        with self._lock:
+            if self.image_queue.full():
+                logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
-            return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, thumbnail_file, size))
-        self.image_queue.put(task_id)
-        self.tasks_map[task_id] = task
-        return task_id, 200
+                return ('thumbnail server busy.', 503)
+            task_id = str(uuid.uuid4())
+            task = (func, (repo, file_id, thumbnail_file, size))
+            try:
+                self.image_queue.put(task_id)
+                self.tasks_map[task_id] = task
+                return task_id, 200
+            except Exception as e:
+                logger.error(e)
+                return ('Internal server error.', 500)
 
     def add_pdf_or_psd_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
         if self.image_queue.full():
@@ -46,8 +89,9 @@ class ThumbnailManager(object):
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
-        self.image_queue.put(task_id)
-        self.tasks_map[task_id] = task
+        with self._lock:
+            self.image_queue.put(task_id)
+            self.tasks_map[task_id] = task
         return task_id, 200
 
     def add_xmind_create_task(self, func, repo_id, path, size):
@@ -58,8 +102,9 @@ class ThumbnailManager(object):
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, path, size))
-        self.image_queue.put(task_id)
-        self.tasks_map[task_id] = task
+        with self._lock:
+            self.image_queue.put(task_id)
+            self.tasks_map[task_id] = task
         return task_id, 200
 
     def add_video_task(self, func, repo, file_id, path, size, thumbnail_file):
@@ -70,21 +115,28 @@ class ThumbnailManager(object):
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (repo, file_id, path, size, thumbnail_file))
-        self.video_queue.put(task_id)
-        self.tasks_map[task_id] = task
+        with self._lock:
+            self.video_queue.put(task_id)
+            self.tasks_map[task_id] = task
         return task_id, 200
 
     def query_status(self, task_id):
         if not self.is_valid_task_id(task_id):
             error = 'task id: %s invalid'% task_id
             logger.warning(error)
+            # check if the task_id is in the image_queue
+            if task_id in self.image_queue.queue:
+                return False, 'task is running'
+            if task_id in self.video_queue.queue:
+                return False, 'task is running'
             return True, error
-        task_result = self.task_results_map.pop(task_id, None)
-        if task_result == 'success':
-            return True, None
-        if isinstance(task_result, str) and task_result.startswith('error_'):
-            return True, task_result[6:]
-        return False, None
+        with self._lock:
+            task_result = self.task_results_map.pop(task_id, None)
+            if task_result == 'success':
+                return True, None
+            if isinstance(task_result, str) and task_result.startswith('error_'):
+                return True, task_result[6:]
+            return False, None
 
     def handle_image_task(self):
         while True:
@@ -95,10 +147,12 @@ class ThumbnailManager(object):
             except Exception as e:
                 logger.error(e)
                 continue
-            task = self.tasks_map.get(image_id)
+            with self._lock:
+                task = self.tasks_map.get(image_id)
             if type(task) != tuple or len(task) < 1:
+                logger.error('Invalid task format for task %s: %s' % (task, image_id))
                 continue
-            task_info = image_id + ' ' + str(task[0])
+            task_info = f'{image_id} {str(task[0])}'
             try:
                 self.current_task_info[image_id] = task_info
                 logging.info('Run task: %s' % task_info)
@@ -108,17 +162,20 @@ class ThumbnailManager(object):
                 start_time = time.time()
                 # run
                 task[0](*task[1])
-                self.task_results_map[image_id] = 'success'
+                with self._lock:
+                    self.task_results_map[image_id] = 'success'
+                self.current_task_info.pop(image_id, None)
 
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
-                self.current_task_info.pop(image_id, None)
             except Exception as e:
-                self.task_results_map[image_id] = 'error_' + str(e.args[0])
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                with self._lock:
+                    self.task_results_map[image_id] = 'error_' + str(e.args[0]) # test
                 self.current_task_info.pop(image_id, None)
             finally:
-                self.tasks_map.pop(image_id, None)
+                with self._lock:
+                    self.tasks_map.pop(image_id, None)
 
     def handle_video_task(self):
         while True:
@@ -164,6 +221,12 @@ class ThumbnailManager(object):
             video_t.start()
             self.threads.append(image_t)
             self.threads.append(video_t)
+        
+        # start the thread monitor
+        monitor = threading.Thread(target=self.check_and_restart_threads, name="ThreadMonitor")
+        monitor.setDaemon(True)
+        monitor.start()
+
 
 
 thumbnail_task_manager = ThumbnailManager()
