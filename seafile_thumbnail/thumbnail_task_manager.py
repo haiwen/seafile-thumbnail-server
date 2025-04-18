@@ -85,6 +85,45 @@ class ThumbnailManager(object):
         if isinstance(task_result, str) and task_result.startswith('error_'):
             return True, task_result[6:]
         return False, None
+    
+
+    def check_and_restart_threads(self):
+        """monitor the thread status and restart the dead threads"""
+        logger.info("thread monitor started")
+        while True:
+            try:
+                # check the thread status
+                dead_threads = []
+                for i, thread in enumerate(self.threads):
+                    if not thread.is_alive():
+                        logger.warning(f"detected thread {thread.name} is dead, preparing to restart")
+                        dead_threads.append((i, thread))
+                
+                # restart the dead threads
+                for i, thread in dead_threads:
+                    if thread.name.startswith('ImageManager'):
+                        new_thread = threading.Thread(
+                            target=self.handle_image_task, 
+                            name=thread.name
+                        )
+                    else:  # VideoManager
+                        new_thread = threading.Thread(
+                            target=self.handle_video_task, 
+                            name=thread.name
+                        )
+                    
+                    new_thread.setDaemon(True)
+                    new_thread.start()
+                    
+                    self.threads[i] = new_thread
+                    
+                    logger.info(f"thread {thread.name} restarted")
+                    
+            except Exception as e:
+                logger.error(f"thread monitor error: {str(e)}")
+            
+            time.sleep(60)
+
 
     def handle_image_task(self):
         while True:
@@ -114,7 +153,11 @@ class ThumbnailManager(object):
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(image_id, None)
             except Exception as e:
-                self.task_results_map[image_id] = 'error_' + str(e.args[0])
+                # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
+                if len(e.args) > 0:
+                    self.task_results_map[image_id] = 'error_' + str(e.args[0])
+                else:
+                    self.task_results_map[image_id] = 'error_' + str(e)
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(image_id, None)
             finally:
@@ -146,7 +189,11 @@ class ThumbnailManager(object):
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(video_id, None)
             except Exception as e:
-                self.task_results_map[video_id] = 'error_' + str(e.args[0])
+                # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
+                if len(e.args) > 0:
+                    self.task_results_map[video_id] = 'error_' + str(e.args[0])
+                else:
+                    self.task_results_map[video_id] = 'error_' + str(e)
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(video_id, None)
             finally:
@@ -165,5 +212,9 @@ class ThumbnailManager(object):
             self.threads.append(image_t)
             self.threads.append(video_t)
 
+        # start the thread monitor
+        monitor = threading.Thread(target=self.check_and_restart_threads, name="ThreadMonitor")
+        monitor.setDaemon(True)
+        monitor.start()
 
 thumbnail_task_manager = ThumbnailManager()

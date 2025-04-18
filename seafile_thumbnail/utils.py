@@ -4,6 +4,7 @@ from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG,
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
 
 from seafobj import fs_mgr
+from seaserv import seafile_api
 
 PREVIEW_FILEEXT = {
     IMAGE: ('gif', 'jpeg', 'jpg', 'png', 'ico', 'bmp', 'tif', 'tiff', 'psd', 'webp', 'jfif', 'heic'),
@@ -120,8 +121,14 @@ def normalize_share_cache_key(token, sessionid):
 def get_file_content_by_obj_id(repo_id, obj_id):
     if obj_id == ZERO_OBJ_ID:
         return b''
-    f = fs_mgr.load_seafile(repo_id, 1, obj_id)
-    b_content = f.get_content()
-    if not b_content.strip():
-        return b''
+    try:
+        repo = seafile_api.get_repo(repo_id)
+        if repo.is_virtual:
+            repo_id = repo.origin_repo_id
+        f = fs_mgr.load_seafile(repo_id, 1, obj_id)
+        b_content = f.get_content()
+        if not b_content.strip():
+            return b''
+    except Exception as e:
+        raise Exception('Failed to get file content by obj id: %s' % e)
     return b_content
