@@ -62,14 +62,14 @@ class ThumbnailManager(object):
         self.tasks_map[task_id] = task
         return task_id, 200
 
-    def add_video_task(self, func, repo, file_id, path, size, thumbnail_file):
+    def add_video_task(self, func, repo, file_id, size, thumbnail_file):
         if self.video_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, path, size, thumbnail_file))
+        task = (func, (repo, file_id, size, thumbnail_file))
         self.video_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200

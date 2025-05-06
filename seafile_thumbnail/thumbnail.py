@@ -91,7 +91,7 @@ def generate_thumbnail(request, thumbnail_info):
 
     if filetype == VIDEO:
         # video thumbnails
-        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, size,
+        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, size,
                                                         thumbnail_file)
         if status != 200:
             return (task_id, status)
@@ -201,7 +201,7 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return
 
 
-def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
+def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
     tmp_image_path = os.path.join(
         tempfile.gettempdir(), file_id + '.png')
     try:
@@ -213,7 +213,17 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             tmpfile.seek(0)
             tmp_video_path = tmpfile.name
         
-        subprocess.check_output(['ffmpeg', '-i', tmp_video_path, '-ss', str(THUMBNAIL_VIDEO_FRAME_TIME), 
+        # get video duration
+        duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+                       '-of', 'default=noprint_wrappers=1:nokey=1', tmp_video_path]
+        duration = float(subprocess.check_output(duration_cmd).decode().strip())
+
+        if duration <= THUMBNAIL_VIDEO_FRAME_TIME:
+            frame_time = duration / 2
+        else:
+            frame_time = THUMBNAIL_VIDEO_FRAME_TIME
+            
+        subprocess.check_output(['ffmpeg', '-i', tmp_video_path, '-ss', str(frame_time), 
                                '-vframes', '1', '-nostdin', tmp_image_path])
         
         if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
@@ -222,7 +232,7 @@ def create_video_thumbnails(repo_id, file_id, path, size, thumbnail_file):
             os.remove(tmp_video_path)
             return True
         else:
-            raise Exception("The video duration is relatively short")
+            raise Exception("Failed to generate video thumbnail")
             
     except Exception as e:
         if os.path.exists(tmp_image_path):
