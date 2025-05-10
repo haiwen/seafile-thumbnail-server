@@ -21,6 +21,7 @@ LOG_DIR = '.'
 # VIDEO thumbnail
 ENABLE_VIDEO_THUMBNAIL = True
 THUMBNAIL_VIDEO_FRAME_TIME = 5  # use the frame at 5 second as thumbnail
+SAFETY_MARGIN = 0.1
 # xmind thumbnail
 ENABLE_XMIND_THUMBNAIL = True
 # pdf thumbnails

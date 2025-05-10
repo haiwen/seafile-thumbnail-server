@@ -10,7 +10,7 @@ from PIL import Image
 from seafile_thumbnail.utils import get_file_content_by_obj_id
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
-    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME
+    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from seaserv import seafile_api
 
@@ -217,12 +217,10 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
         duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
                        '-of', 'default=noprint_wrappers=1:nokey=1', tmp_video_path]
         duration = float(subprocess.check_output(duration_cmd).decode().strip())
-
-        if duration <= THUMBNAIL_VIDEO_FRAME_TIME:
-            frame_time = duration / 2
-        else:
+        if THUMBNAIL_VIDEO_FRAME_TIME <= duration - SAFETY_MARGIN:
             frame_time = THUMBNAIL_VIDEO_FRAME_TIME
-            
+        else:
+            frame_time = duration / 2
         subprocess.check_output(['ffmpeg', '-i', tmp_video_path, '-ss', str(frame_time), 
                                '-vframes', '1', '-nostdin', tmp_image_path])
         
