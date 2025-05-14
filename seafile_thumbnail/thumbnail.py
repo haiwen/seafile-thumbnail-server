@@ -23,6 +23,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 XMIND_IMAGE_SIZE = 1024
+MAX_PAGE_AREA = 8000000  # 8 million square points
+# If the page size is large but does not exceed the limit, reduce DPI
+LARGE_PAGE_THRESHOLD = 2000
+LARGE_AREA_THRESHOLD = 3000000
+# PDF size threshold for detailed page size checking (bytes)
+LARGE_PDF_SIZE_THRESHOLD = 50 * 1024 * 1024  # 50MB
 
 
 def get_rotated_image(image):
@@ -166,10 +172,47 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return
 
 
-def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
+def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
     with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmpfile:
         tmpfile.write(pdf_bytes)
         tmp_file = tmpfile.name
+        
+        if len(pdf_bytes) > LARGE_PDF_SIZE_THRESHOLD:
+            pdf_info_command = [
+                'pdfinfo',
+                '-f', '1',
+                '-l', '1',
+                tmp_file
+            ]
+            try:
+                page_info = subprocess.check_output(pdf_info_command, stderr=subprocess.PIPE).decode('utf-8')
+                page_size = None
+                for line in page_info.split('\n'):
+                    if 'Page    1 size:' in line:
+                        page_size = line.strip()
+                        break
+                # check page size
+                if page_size:
+                    # format: "Page    1 size:  6000 x 6000 pts"
+                    parts = page_size.split(':', 1)[1].strip().split('x')
+                    if len(parts) >= 2:
+                        width = float(parts[0].strip())
+                        height = float(parts[1].split('pts')[0].strip())
+                        area = width * height
+                        if area > MAX_PAGE_AREA:
+                            raise Exception(f'PDF page area too large: {area:.0f} sq pts (limit: {MAX_PAGE_AREA})')
+
+                        if (width > LARGE_PAGE_THRESHOLD or height > LARGE_PAGE_THRESHOLD or 
+                            area > LARGE_AREA_THRESHOLD):
+                            dpi = 72  # use min dpi
+                            logger.info(f'Large PDF page detected ({width}x{height}), reducing DPI to {dpi}')
+                            
+            except Exception as e:
+                # If it is clear that the page was skipped due to being too large, throw the exception again 
+                if 'PDF page too large' in str(e) or 'PDF page area too large' in str(e):
+                    raise 
+                dpi = 72
+        
         command = [
             'pdftoppm',
             '-png',
@@ -179,26 +222,35 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=200):
             '-singlefile', tmp_file,
             '-o', prefix_path
         ]
-        subprocess.check_output(command)
+        try:
+            subprocess.check_output(command, timeout=60)
+        except subprocess.TimeoutExpired:
+            logger.error('PDF thumbnail generation timed out after 60 seconds')
+            raise Exception('PDF processing timeout')
+        except subprocess.CalledProcessError as e:
+            logger.error(f'pdftoppm failed: {e}')
+            raise
 
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
     tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
-    image_file = get_file_content_by_obj_id(repo_id, file_id)
-    pdf_bytes_to_images(image_file, tmp_path)
-    tmp_path = tmp_path + '.png'
-    t2 = timeit.default_timer()
-    logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-
+    
     try:
+        image_file = get_file_content_by_obj_id(repo_id, file_id)
+        pdf_bytes_to_images(image_file, tmp_path)
+        tmp_path = tmp_path + '.png'
+        t2 = timeit.default_timer()
+        logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+
         _create_thumbnail_common(tmp_path, thumbnail_file, size)
         os.unlink(tmp_path)
         return
     except Exception as e:
-        logger.warning(e)
-        os.unlink(tmp_path)
-        return
+        logger.warning(f'Error creating PDF thumbnail: {e}')
+        if os.path.exists(tmp_path + '.png'):
+            os.unlink(tmp_path + '.png')
+        raise
 
 
 def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
