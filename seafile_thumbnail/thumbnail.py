@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 XMIND_IMAGE_SIZE = 1024
 MAX_PAGE_AREA = 8000000  # 8 million square points
 # If the page size is large but does not exceed the limit, reduce DPI
-LARGE_PAGE_THRESHOLD = 2000
+LARGE_WIDTH_HEIGHT_THRESHOLD = 2000
 LARGE_AREA_THRESHOLD = 3000000
 # PDF size threshold for detailed page size checking (bytes)
 LARGE_PDF_SIZE_THRESHOLD = 50 * 1024 * 1024  # 50MB
@@ -202,7 +202,7 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
                         if area > MAX_PAGE_AREA:
                             raise Exception(f'PDF page area too large: {area:.0f} sq pts (limit: {MAX_PAGE_AREA})')
 
-                        if (width > LARGE_PAGE_THRESHOLD or height > LARGE_PAGE_THRESHOLD or 
+                        if (width > LARGE_WIDTH_HEIGHT_THRESHOLD or height > LARGE_WIDTH_HEIGHT_THRESHOLD or 
                             area > LARGE_AREA_THRESHOLD):
                             dpi = 72  # use min dpi
                             logger.info(f'Large PDF page detected ({width}x{height}), reducing DPI to {dpi}')
