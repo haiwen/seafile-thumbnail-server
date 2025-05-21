@@ -11,7 +11,7 @@ PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # url
 URL_PREFIX = '/'
-INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
+SEAFILE_SERVER_URL = 'http://127.0.0.1:8000'
 
 # dir
 CONF_DIR = '/data/conf/'
@@ -67,4 +67,5 @@ try:
 except ImportError as e:
     pass
 
-
+SEAFILE_SERVER_URL = os.getenv('SEAFILE_SERVER_URL') or SEAFILE_SERVER_URL
+JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
