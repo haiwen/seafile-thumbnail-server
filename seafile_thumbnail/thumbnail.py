@@ -304,9 +304,8 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     width, height = image.size
     thumbnail_image_size = width * height * 4 / 1024 / 1024
     if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
-        logger.warning('Image memory cost exceeds the limit')
-        return
-
+        raise Exception('Image memory cost exceeds the limit')
+        
     if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
         image = image.convert("RGB")
 
