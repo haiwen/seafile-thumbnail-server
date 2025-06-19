@@ -12,7 +12,6 @@ export LOG_DIR=/opt/seafile/logs
 export THUMBNAIL_ROOT=/opt/seafile/seahub-data/thumbnail
 
 export INNER_SEAHUB_SERVICE_URL=${INNER_SEAHUB_SERVICE_URL}
-export URL_PREFIX=${URL_PREFIX:-/}
 export JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
 export SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db}
 export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
@@ -50,14 +49,12 @@ function monitor_seafile() {
 }
 
 function monitor_seafile_thumbnail() {
-    process_name="uvicorn"
+    process_name="main.py"
     check_num=$(check_process $process_name)
     if [ $check_num -eq 0 ]; then
         log "Start $process_name"
-        pkill -9 -f multiprocessing
-        sleep 0.2
         cd /opt/seafile/thumbnail-server/
-        /usr/local/bin/uvicorn main:app --host 127.0.0.1 --port 8088 --workers 4 --access-log --proxy-headers &>> /opt/seafile/logs/thumbnail-server.log &
+        /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
         sleep 0.2
     fi
 }

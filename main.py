@@ -16,7 +16,7 @@ class ThumbnailServer(Thread):
         Thread.__init__(self)
         thumbnail_task_manager.run(task_workers)
 
-        config = uvicorn.Config(app, port=8001)
+        config = uvicorn.Config(app, port=8088)
         self._server = uvicorn.Server(config)
 
     def run(self):

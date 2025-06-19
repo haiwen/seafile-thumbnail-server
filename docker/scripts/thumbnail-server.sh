@@ -2,8 +2,7 @@
 
 function stop_server() {
     pkill -9 -f seaf-server
-    pkill -9 -f uvicorn
-    pkill -9 -f multiprocessing
+    pkill -9 -f main.py
 
     pkill -9 -f monitor
 
@@ -23,7 +22,6 @@ function set_env() {
     export THUMBNAIL_ROOT=/opt/seafile/seahub-data/thumbnail
 
     export INNER_SEAHUB_SERVICE_URL=${INNER_SEAHUB_SERVICE_URL}
-    export URL_PREFIX=${URL_PREFIX:-/}
     export JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
     export SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db}
     export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
@@ -47,7 +45,7 @@ function start_server() {
     sleep 0.2
 
     cd /opt/seafile/thumbnail-server/
-    /usr/local/bin/uvicorn main:app --host 127.0.0.1 --port 8088 --workers 4 --access-log --proxy-headers &>> /opt/seafile/logs/thumbnail-server.log &
+    /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
     sleep 0.2
 
     /scripts/monitor.sh &>> /opt/seafile/logs/monitor.log &
@@ -58,15 +56,14 @@ function start_server() {
 }
 
 function restart_thumbnail() {
-    pkill -9 -f uvicorn
-    pkill -9 -f multiprocessing
+    pkill -9 -f main.py
 
     sleep 0.5
 
     set_env
 
     cd /opt/seafile/thumbnail-server/
-    /usr/local/bin/uvicorn main:app --host 127.0.0.1 --port 8088 --workers 4 --access-log --proxy-headers &>> /opt/seafile/logs/thumbnail-server.log &
+    /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
     sleep 0.2
 
     echo "thumbnail-server restarted"

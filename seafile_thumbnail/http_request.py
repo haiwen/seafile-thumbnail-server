@@ -36,7 +36,7 @@ class HTTPRequest(object):
         self.cookies = cookies
 
     def parse_url(self):
-        self.url = self.path[len(settings.URL_PREFIX):]
+        self.url = self.path[len(settings.SITE_ROOT):]
 
     def parse_query_dict(self):
         query_string = self.query_string.decode()

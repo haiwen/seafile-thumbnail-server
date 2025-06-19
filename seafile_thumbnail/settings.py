@@ -4,7 +4,7 @@ import sys
 PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # url
-URL_PREFIX = '/'
+SITE_ROOT = '/'
 INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
@@ -64,7 +64,7 @@ except ImportError as e:
 
 # ======================== settings in env ======================= #
 INNER_SEAHUB_SERVICE_URL = os.getenv('INNER_SEAHUB_SERVICE_URL') or INNER_SEAHUB_SERVICE_URL
-URL_PREFIX = os.getenv('URL_PREFIX') or URL_PREFIX
+SITE_ROOT = os.getenv('SITE_ROOT') or SITE_ROOT
 
 CONF_DIR = os.getenv('CONF_DIR') or CONF_DIR
 LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR
