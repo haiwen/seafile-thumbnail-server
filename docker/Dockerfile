@@ -1,5 +1,5 @@
 FROM ubuntu:24.04
-# docker.seafile.top/seafile-dev/thumbnail-server:1.x.x
+# seafileltd/thumbnail-server:13.x.x
 
 # https://github.com/phusion/baseimage-docker
 COPY base_scripts /bd_build
