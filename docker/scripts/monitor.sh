@@ -22,7 +22,8 @@ export SITE_ROOT=${SITE_ROOT:-/}
 # log function
 function log() {
     local time=$(date +"%F %T")
-    echo "[$time] $1 "
+    local level=${2:-INFO}
+    echo "[thumbnail-server] [$time] [$level] $1 "
 }
 
 # check process number
