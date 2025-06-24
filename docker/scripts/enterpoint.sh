@@ -4,7 +4,7 @@
 function log() {
     local time=$(date +"%F %T")
     echo "$time $1 "
-    echo "[$time] $1 " &>> /opt/seafile/logs/init.log
+    echo "[thumbnail-server] [$time] $1 " &>> /opt/seafile/logs/init.log
 }
 
 # check nginx
