@@ -3,8 +3,9 @@
 # log function
 function log() {
     local time=$(date +"%F %T")
+    local level=${2:-INFO}
     echo "$time $1 "
-    echo "[thumbnail-server] [$time] $1 " &>> /opt/seafile/logs/init.log
+    echo "[thumbnail-server] [$time] [$level] $1 " &>> /opt/seafile/logs/init.log
 }
 
 # check nginx
