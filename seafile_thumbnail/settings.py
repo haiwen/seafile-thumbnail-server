@@ -3,14 +3,8 @@ import sys
 
 PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 
-# environment
-# os.environ['CCNET_CONF_DIR'] = '/data/conf'
-# os.environ['SEAFILE_CONF_DIR'] = '/opt/seafile-data'
-# os.environ['SEAFILE_CENTRAL_CONF_DIR'] = '/data/conf'
-
-
 # url
-URL_PREFIX = '/'
+SITE_ROOT = '/'
 INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
 # dir
@@ -68,3 +62,12 @@ except ImportError as e:
     pass
 
 
+# ======================== settings in env ======================= #
+INNER_SEAHUB_SERVICE_URL = os.getenv('INNER_SEAHUB_SERVICE_URL') or INNER_SEAHUB_SERVICE_URL
+SITE_ROOT = os.getenv('SITE_ROOT') or SITE_ROOT
+
+CONF_DIR = os.getenv('CONF_DIR') or CONF_DIR
+LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR
+THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
+
+JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
