@@ -38,7 +38,7 @@ RUN ln -sf /opt/seafile/seafile/lib/libsearpc.so.1.0.2 /opt/seafile/seafile/lib/
 
 RUN pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/requirements.txt && \
     pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/seafobj-requirements.txt && \ 
-    pip3 install --no-cache-dir chardet pymysql sqlalchemy redis pylibmc oss2
+    pip3 install --no-cache-dir chardet pymysql sqlalchemy redis pylibmc oss2 lxml
 
 # scripts
 COPY scripts /scripts
