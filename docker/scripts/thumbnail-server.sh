@@ -61,6 +61,7 @@ function restart_thumbnail() {
     sleep 0.5
 
     set_env
+    source /opt/dockerenv
 
     cd /opt/seafile/thumbnail-server/
     /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &

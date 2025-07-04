@@ -20,6 +20,7 @@ while [ 1 ]; do
     fi
 done
 
+env > /opt/dockerenv
 
 # logrotate
 chmod 0644 /scripts/logrotate-conf/logrotate-cron
