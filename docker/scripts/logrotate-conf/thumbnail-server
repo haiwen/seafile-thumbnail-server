@@ -1,5 +1,4 @@
 /opt/seafile/logs/seafile.log
-/opt/seafile/logs/thumbnail-server.log
 {
         daily
         missingok
@@ -16,6 +15,5 @@
                         kill -USR1 `cat /opt/seafile/pids/seafile.pid`
                 fi
 
-                /scripts/thumbnail-server.sh restart-thumbnail
         endscript
 }

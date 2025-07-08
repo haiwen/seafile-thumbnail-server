@@ -55,22 +55,6 @@ function start_server() {
 
 }
 
-function restart_thumbnail() {
-    pkill -9 -f main.py
-
-    sleep 0.5
-
-    set_env
-    source /opt/dockerenv
-
-    cd /opt/seafile/thumbnail-server/
-    /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
-    sleep 0.2
-
-    echo "thumbnail-server restarted"
-    echo
-}
-
 
 case $1 in
 "start")
@@ -81,9 +65,6 @@ case $1 in
     ;;
 "stop")
     stop_server
-    ;;
-"restart-thumbnail")
-    restart_thumbnail
     ;;
 *)
     start_server
