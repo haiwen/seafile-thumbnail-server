@@ -1,6 +1,7 @@
 import sys
 import uvicorn
 import logging
+import logging.handlers
 import os
 import argparse
 from app import app
@@ -39,17 +40,21 @@ def run_server(loglevel='info'):
             'level': level,
             'stream': sys.stdout
         }
+        logging.basicConfig(**log_kw)
+        
     else:
-        log_kw = {
-            'format': formatter,
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-            'level': level,
-            'filename': f'{LOG_DIR}/thumbnail.log'
-        }
+        if not os.path.exists(LOG_DIR):
+            os.makedirs(LOG_DIR, exist_ok=True)
+        handler = logging.handlers.TimedRotatingFileHandler(f'{LOG_DIR}/thumbnail.log', when='M', interval=1)
+        formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s',
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+        handler.setLevel(level)
+        handler.setFormatter(formatter)
+        logging.root.setLevel(level)
+        logging.root.addHandler(handler)
 
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR, exist_ok=True)
-    logging.basicConfig(**log_kw)
+
+    
     thumbnail_server = ThumbnailServer(TASK_WORKERS)
     thumbnail_server.run()
 
