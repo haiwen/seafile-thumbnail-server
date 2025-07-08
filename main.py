@@ -45,7 +45,7 @@ def run_server(loglevel='info'):
     else:
         if not os.path.exists(LOG_DIR):
             os.makedirs(LOG_DIR, exist_ok=True)
-        handler = logging.handlers.TimedRotatingFileHandler(f'{LOG_DIR}/thumbnail.log', when='M', interval=1)
+        handler = logging.handlers.TimedRotatingFileHandler(f'{LOG_DIR}/thumbnail.log', when='W0', interval=1)
         formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         handler.setLevel(level)
