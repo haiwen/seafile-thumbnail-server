@@ -1,15 +1,17 @@
 import hashlib
 import os
 import re
+import logging
 from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
-                                    normalize_share_cache_key
+                                    normalize_share_cache_key, get_file_info_by_path, get_file_obj_by_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
-from seaserv import get_repo, seafile_api, get_file_size
 from seafile_thumbnail.cache import thumbnail_cache
+
+logger = logging.getLogger(__name__)
 
 
 class ThumbnailSerializer(object):
@@ -44,19 +46,18 @@ class ThumbnailSerializer(object):
         repo_id = self.params['repo_id']
         file_name = os.path.basename(file_path)
         filetype, fileext = get_file_type_and_ext(file_name)
+        try:
+            # get file info
+            file_info = get_file_info_by_path(repo_id, file_path)
+        except Exception as e:
+            logger.error(f'get file info by path error: {e}')
+            raise AssertionError(400, 'file not found.')
 
-        # resource check
-        repo = get_repo(repo_id)
-        if not repo:
-            err_msg = "Library does not exist."
-            raise AssertionError(400, err_msg)
-        if repo.encrypted:
-            err_msg = "Permission denied."
-            raise AssertionError(403, err_msg)
-
-        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
-        file_id = file_obj.obj_id
-        file_size = get_file_size(repo.store_id, repo.version, file_id)
+        file_id = file_info['file_id']
+        file_size = file_info['file_size']
+        virtual_repo_id = file_info['virtual_repo_id']
+        version = file_info['version']
+        root_id = file_info['root_id']
         self.get_enable_file_type()
         if filetype not in self.enable_file_type:
             raise AssertionError(400, 'file_type invalid.')
@@ -65,7 +66,17 @@ class ThumbnailSerializer(object):
         thumbnail_file = os.path.join(thumbnail_dir, file_id)
         if not os.path.exists(thumbnail_dir):
             os.makedirs(thumbnail_dir)
-        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
+        
+        try:
+            # get file obj
+            if virtual_repo_id:
+                file_obj = get_file_obj_by_path(virtual_repo_id, version, root_id, file_path)
+            else:
+                file_obj = get_file_obj_by_path(repo_id, version, root_id, file_path)
+        except Exception as e:
+            logger.error(f'get file obj by path error: {e}')
+            raise AssertionError(400, 'file not found.')
+        
         last_modified_time = file_obj.mtime
         last_modified = formatdate(int(last_modified_time), usegmt=True)
         etag = '"' + file_id + '"'
@@ -78,7 +89,8 @@ class ThumbnailSerializer(object):
             'thumbnail_dir': thumbnail_dir,
             'thumbnail_path': thumbnail_file,
             'last_modified': last_modified,
-            'etag': etag
+            'etag': etag,
+            'virtual_repo_id': file_info['virtual_repo_id']
         }
 
     def get_enable_file_type(self):

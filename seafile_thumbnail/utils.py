@@ -2,9 +2,9 @@ import os
 import posixpath
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
-
-from seafobj import fs_mgr
-from seaserv import seafile_api
+from sqlalchemy import text
+from seafobj import fs_mgr, commit_mgr
+from seafile_thumbnail.db import init_db_session_class
 
 PREVIEW_FILEEXT = {
     IMAGE: ('gif', 'jpeg', 'jpg', 'png', 'ico', 'bmp', 'tif', 'tiff', 'psd', 'webp', 'jfif', 'heic'),
@@ -122,9 +122,6 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     if obj_id == ZERO_OBJ_ID:
         return b''
     try:
-        repo = seafile_api.get_repo(repo_id)
-        if repo.is_virtual:
-            repo_id = repo.origin_repo_id
         f = fs_mgr.load_seafile(repo_id, 1, obj_id)
         b_content = f.get_content()
         if not b_content.strip():
@@ -132,3 +129,78 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     except Exception as e:
         raise Exception('Failed to get file content by obj id: %s' % e)
     return b_content
+
+
+def get_file_info_by_path(repo_id, file_path):
+    db_session_class = init_db_session_class('seafile')
+    with db_session_class() as session:
+        sql = text("""
+            SELECT s.size, b.commit_id,
+            v.origin_repo as virtual_repo_id, v.path,
+            i.status, i.type, st.storage_id , i.version
+            FROM Repo r 
+            LEFT JOIN Branch b ON r.repo_id = b.repo_id
+            LEFT JOIN RepoSize s ON r.repo_id = s.repo_id
+            LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
+            LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
+            LEFT JOIN RepoStorageId st ON r.repo_id = st.repo_id
+            WHERE r.repo_id = :repo_id AND b.name = 'master'
+        """)
+
+        result = session.execute(sql, {"repo_id": repo_id}).first()
+        if not result:
+            err_msg = "Library does not exist."
+            raise AssertionError(400, err_msg)
+        repo_type = result.type if result.type is not None else 0
+        if repo_type == 1:
+            err_msg = "Permission denied."
+            raise AssertionError(403, err_msg)
+    
+        repo_info = {
+            'size': result.size,
+            'commit_id': result.commit_id,
+            'virtual_repo_id': result.virtual_repo_id,
+            'path': result.path,
+            'status': result.status,
+            'type': repo_type,
+            'storage_id': result.storage_id,
+            'version': result.version
+        }
+        
+        if repo_info['virtual_repo_id']:
+            commit_id = get_repo_head_commit(session, repo_id)[0]
+            commit = commit_mgr.load_commit(repo_id, 0, commit_id)
+            root_id = commit.root_id
+            file_id = fs_mgr.get_file_id_by_path(repo_info['virtual_repo_id'], repo_info['version'], root_id, file_path)
+            f = fs_mgr.load_seafile(repo_info['virtual_repo_id'], repo_info['version'], file_id)
+        else:
+            commit_id = get_repo_head_commit(session, repo_id)[0]
+            commit = commit_mgr.load_commit(repo_id, 0, commit_id)
+            root_id = commit.root_id
+            file_id = fs_mgr.get_file_id_by_path(repo_id, repo_info['version'], root_id, file_path)
+            f = fs_mgr.load_seafile(repo_id, repo_info['version'], file_id)
+        file_size = f.size
+    repo_info.update({
+        'file_id': file_id, 
+        'file_size': file_size,
+        'root_id': root_id,
+    })
+    return repo_info
+
+
+def get_file_obj_by_path(repo_id, version, root_id, file_path):
+    parent_path = os.path.dirname(file_path)
+    dir = fs_mgr.get_seafdir_by_path(repo_id, version, root_id, parent_path)
+    return dir.lookup_dent(os.path.basename(file_path))
+
+
+def get_repo_head_commit(session,repo_id):
+    try:
+        sql = text("""SELECT b.commit_id, r.type
+                    from Branch as b inner join RepoInfo as r
+                    where b.repo_id=r.repo_id and b.repo_id=:repo_id"""
+        )
+        res = session.execute(sql, {'repo_id': repo_id}).first()
+        return res
+    except Exception as e:
+        raise e

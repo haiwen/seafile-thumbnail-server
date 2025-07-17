@@ -83,12 +83,17 @@ def generate_thumbnail(request, thumbnail_info):
     """
     size = int(thumbnail_info['size'])
     repo_id = thumbnail_info['repo_id']
+    virtual_repo_id = thumbnail_info['virtual_repo_id']   
     filetype = thumbnail_info['file_type']
     fileext = thumbnail_info['file_ext']
     file_size = thumbnail_info['file_size']
     file_id = thumbnail_info['file_id']
     thumbnail_file = thumbnail_info['thumbnail_path']
     path = thumbnail_info['file_path']
+   
+    if virtual_repo_id:
+        repo_id = virtual_repo_id
+
 
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
         return (False, 400)
@@ -110,7 +115,7 @@ def generate_thumbnail(request, thumbnail_info):
                 return (task_id, status)
         return (task_id, 200)
     if filetype == XMIND:
-        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, path, size)
+        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, size)
         if status != 200:
                 return (task_id, status)
         return (task_id, 200)
@@ -318,8 +323,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     return
 
 
-def extract_xmind_image(repo_id, path, size=XMIND_IMAGE_SIZE):
-    file_id = seafile_api.get_file_id_by_path(repo_id, path)
+def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE):
     xmind_file = get_file_content_by_obj_id(repo_id, file_id)
     xmind_file_str = BytesIO(xmind_file)
     
