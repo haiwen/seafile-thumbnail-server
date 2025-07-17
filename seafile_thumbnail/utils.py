@@ -142,76 +142,68 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     return b_content
 
 
-def get_file_info_by_path(repo_id, file_path):
-    db_session_class = init_db_session_class('seafile')
-    with db_session_class() as session:
-        sql = text("""
-            SELECT s.size, b.commit_id,
-            v.origin_repo as virtual_repo_id, v.path,
-            i.status, i.type, st.storage_id , i.version
-            FROM Repo r 
-            LEFT JOIN Branch b ON r.repo_id = b.repo_id
-            LEFT JOIN RepoSize s ON r.repo_id = s.repo_id
-            LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
-            LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
-            LEFT JOIN RepoStorageId st ON r.repo_id = st.repo_id
-            WHERE r.repo_id = :repo_id AND b.name = 'master'
-        """)
+class SeafileAPI(object):
+    def __init__(self, repo_id):
+        self.repo_id = repo_id
+        self.db_session_class = init_db_session_class('seafile')
 
-        result = session.execute(sql, {"repo_id": repo_id}).first()
-        if not result:
-            err_msg = "Library does not exist."
-            raise AssertionError(400, err_msg)
-        repo_type = result.type if result.type is not None else 0
-        if repo_type == 1:
-            err_msg = "Permission denied."
-            raise AssertionError(403, err_msg)
+    def get_repo_info(self):
+        with self.db_session_class() as session:
+            sql = text("""
+                SELECT v.origin_repo as origin_repo_id, i.is_encrypted
+                FROM Repo r 
+                LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
+                LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
+                WHERE r.repo_id = :repo_id
+            """)
+
+            result = session.execute(sql, {"repo_id": self.repo_id}).first()
+            if not result:
+                return None
+            repo = {
+                'repo_id': self.repo_id,
+                'origin_repo_id': result.origin_repo_id,
+                'is_encrypted': result.is_encrypted,
+            }
+            return repo
+
     
-        repo_info = {
-            'size': result.size,
-            'commit_id': result.commit_id,
-            'virtual_repo_id': result.virtual_repo_id,
-            'path': result.path,
-            'status': result.status,
-            'type': repo_type,
-            'storage_id': result.storage_id,
-            'version': result.version
-        }
-        
-        if repo_info['virtual_repo_id']:
-            commit_id = get_repo_head_commit(session, repo_id)[0]
-            commit = commit_mgr.load_commit(repo_id, 0, commit_id)
-            root_id = commit.root_id
-            file_id = fs_mgr.get_file_id_by_path(repo_info['virtual_repo_id'], repo_info['version'], root_id, file_path)
-            f = fs_mgr.load_seafile(repo_info['virtual_repo_id'], repo_info['version'], file_id)
+    def _get_repo_head_commit(self):
+        try:
+            with self.db_session_class() as session:
+                sql = text("""SELECT b.commit_id, r.type
+                            from Branch as b inner join RepoInfo as r
+                            where b.repo_id=r.repo_id and b.repo_id=:repo_id"""
+                )
+                res = session.execute(sql, {'repo_id': self.repo_id}).first()
+                return res
+        except Exception as e:
+            raise e
+    
+    def get_dirent_by_path(self, repo, file_path):
+        commit_id = self._get_repo_head_commit()[0]
+        commit = commit_mgr.load_commit(self.repo_id, 0, commit_id)
+        root_id = commit.root_id
+        parent_path = os.path.dirname(file_path)
+        origin_repo_id = repo.get('origin_repo_id')
+        if origin_repo_id:
+            dir = fs_mgr.get_seafdir_by_path(origin_repo_id, 1, root_id, parent_path)
         else:
-            commit_id = get_repo_head_commit(session, repo_id)[0]
-            commit = commit_mgr.load_commit(repo_id, 0, commit_id)
-            root_id = commit.root_id
-            file_id = fs_mgr.get_file_id_by_path(repo_id, repo_info['version'], root_id, file_path)
-            f = fs_mgr.load_seafile(repo_id, repo_info['version'], file_id)
-        file_size = f.size
-    repo_info.update({
-        'file_id': file_id, 
-        'file_size': file_size,
-        'root_id': root_id,
-    })
-    return repo_info
+            dir = fs_mgr.get_seafdir_by_path(self.repo_id, 1, root_id, parent_path)
+        return dir.lookup_dent(os.path.basename(file_path))
+    
+    
+    def get_file_id_by_path(self, repo, file_path):
+        origin_repo_id = repo.get('origin_repo_id')
+        commit_id = self._get_repo_head_commit()[0]
+        commit = commit_mgr.load_commit(self.repo_id, 0, commit_id)
+        root_id = commit.root_id
+        if origin_repo_id:
+            
+            file_id = fs_mgr.get_file_id_by_path(origin_repo_id, 1, root_id, file_path)
+            f = fs_mgr.load_seafile(origin_repo_id, 1, file_id)
+        else:
+            file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
+            f = fs_mgr.load_seafile(self.repo_id, 1, file_id)
 
-
-def get_file_obj_by_path(repo_id, version, root_id, file_path):
-    parent_path = os.path.dirname(file_path)
-    dir = fs_mgr.get_seafdir_by_path(repo_id, version, root_id, parent_path)
-    return dir.lookup_dent(os.path.basename(file_path))
-
-
-def get_repo_head_commit(session,repo_id):
-    try:
-        sql = text("""SELECT b.commit_id, r.type
-                    from Branch as b inner join RepoInfo as r
-                    where b.repo_id=r.repo_id and b.repo_id=:repo_id"""
-        )
-        res = session.execute(sql, {'repo_id': repo_id}).first()
-        return res
-    except Exception as e:
-        raise e
+        return file_id

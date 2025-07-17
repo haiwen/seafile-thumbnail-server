@@ -82,7 +82,7 @@ def generate_thumbnail(request, thumbnail_info):
     """
     size = int(thumbnail_info['size'])
     repo_id = thumbnail_info['repo_id']
-    virtual_repo_id = thumbnail_info['virtual_repo_id']   
+    origin_repo_id = thumbnail_info['origin_repo_id']   
     filetype = thumbnail_info['file_type']
     fileext = thumbnail_info['file_ext']
     file_size = thumbnail_info['file_size']
@@ -90,8 +90,8 @@ def generate_thumbnail(request, thumbnail_info):
     thumbnail_file = thumbnail_info['thumbnail_path']
     path = thumbnail_info['file_path']
    
-    if virtual_repo_id:
-        repo_id = virtual_repo_id
+    if origin_repo_id:
+        repo_id = origin_repo_id
 
 
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
