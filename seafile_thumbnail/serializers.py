@@ -7,7 +7,7 @@ from email.utils import formatdate
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
-                                    normalize_share_cache_key, get_file_info_by_path, get_file_obj_by_path
+                                    normalize_share_cache_key, get_file_info_by_path, get_file_obj_by_path, normalize_file_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
 from seafile_thumbnail.cache import thumbnail_cache
 
@@ -44,6 +44,7 @@ class ThumbnailSerializer(object):
             file_path = path
         size = self.params['size']
         repo_id = self.params['repo_id']
+        file_path = normalize_file_path(file_path)
         file_name = os.path.basename(file_path)
         filetype, fileext = get_file_type_and_ext(file_name)
         try:

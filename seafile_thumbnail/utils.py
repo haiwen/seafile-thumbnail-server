@@ -113,6 +113,17 @@ def normalize_dir_path(path):
     else:
         return '/' + path + '/'
 
+def normalize_file_path(path):
+    """Remove '/' at the end of file path if necessary.
+
+    And make sure path starts with '/'
+    """
+
+    path = path.strip('/')
+    if path == '':
+        return ''
+    else:
+        return '/' + path
 
 def normalize_share_cache_key(token, sessionid):
     return token + '_' + sessionid
