@@ -12,7 +12,6 @@ from seafile_thumbnail.constants import VIDEO, PDF, XMIND
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
-from seaserv import seafile_api
 
 try:
     from pillow_heif import register_heif_opener
