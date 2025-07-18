@@ -11,7 +11,6 @@ INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 CONF_DIR = '/data/conf/'
 LOG_DIR = '.'
 # LOG_DIR = os.path.join(os.path.dirname(PROJECT_ROOT), 'logs') # abs path
-
 # VIDEO thumbnail
 ENABLE_VIDEO_THUMBNAIL = True
 THUMBNAIL_VIDEO_FRAME_TIME = 5  # use the frame at 5 second as thumbnail
@@ -71,3 +70,12 @@ LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR
 THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
 
 JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
+
+# config for mysql
+MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db')
+MYSQL_DB_PROT = os.environ.get('SEAFILE_MYSQL_DB_PORT', 3306)
+MYSQL_DB_USER = os.environ.get('SEAFILE_MYSQL_DB_USER', 'root')
+MYSQL_DB_PWD = os.environ.get('SEAFILE_MYSQL_DB_PASSWORD', '')
+MYSQL_SEAHUB_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAHUB_DB_NAME', 'seahub_db')
+MYSQL_SEAFILE_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAFILE_DB_NAME', 'seafile_db')
+MYSQL_CCNET_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_CCNET_DB_NAME', 'ccnet_db')

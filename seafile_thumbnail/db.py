@@ -1,17 +1,15 @@
 import logging
-import uuid
 from urllib.parse import quote_plus
-import os
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.sql.sqltypes import Integer, String
 from sqlalchemy.event import contains as has_event_listener, listen as add_event_listener
 from sqlalchemy.exc import DisconnectionError
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import Pool
 from sqlalchemy.ext.automap import automap_base
+
+from seafile_thumbnail.settings import MYSQL_SEAHUB_DB_NAME, MYSQL_SEAFILE_DB_NAME, MYSQL_CCNET_DB_NAME, MYSQL_DB_HOST, \
+    MYSQL_DB_PROT, MYSQL_DB_USER, MYSQL_DB_PWD
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +27,16 @@ def create_engine_from_env(db='seahub'):
 
     db_name = ''
     if db == 'seahub':
-        db_name = os.getenv('SEAFILE_MYSQL_DB_SEAHUB_DB_NAME', 'seahub_db')
+        db_name = MYSQL_SEAHUB_DB_NAME
     elif db == 'seafile':
-        db_name = os.getenv('SEAFILE_MYSQL_DB_SEAFILE_DB_NAME', 'seafile_db')
+        db_name = MYSQL_SEAFILE_DB_NAME
     elif db == 'ccnet':
-        db_name = os.getenv('SEAFILE_MYSQL_DB_CCNET_DB_NAME', 'ccnet_db')
-        
-    db_host = os.getenv('SEAFILE_MYSQL_DB_HOST', '127.0.0.1')
-    db_port = os.getenv('SEAFILE_MYSQL_DB_PORT', '3306')
-    db_user = os.getenv('SEAFILE_MYSQL_DB_USER', 'root')
-    db_pwd = os.getenv('SEAFILE_MYSQL_DB_PASSWORD', '')
+        db_name = MYSQL_CCNET_DB_NAME
+
+    db_host = MYSQL_DB_HOST
+    db_port = MYSQL_DB_PROT
+    db_user = MYSQL_DB_USER
+    db_pwd = MYSQL_DB_PWD
     
     if not (db_name and db_host and db_port and db_user):
         raise RuntimeError('Database configured error')
