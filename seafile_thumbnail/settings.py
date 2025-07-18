@@ -47,6 +47,16 @@ JWT_PRIVATE_KEY = ""
 TASK_WORKERS = 3
 
 
+# Mysql config
+MYSQL_DB_HOST = ''
+MYSQL_DB_PROT = ''
+MYSQL_DB_USER = ''
+MYSQL_DB_PWD = ''
+MYSQL_SEAHUB_DB_NAME = 'seahub'
+MYSQL_SEAFILE_DB_NAME = 'seafile'
+MYSQL_CCNET_DB_NAME = 'ccnet'
+
+
 # ======================== local settings ======================== #
 try:
     from local_settings import *
@@ -72,10 +82,10 @@ THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
 JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
 
 # config for mysql
-MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db')
-MYSQL_DB_PROT = os.environ.get('SEAFILE_MYSQL_DB_PORT', 3306)
-MYSQL_DB_USER = os.environ.get('SEAFILE_MYSQL_DB_USER', 'root')
-MYSQL_DB_PWD = os.environ.get('SEAFILE_MYSQL_DB_PASSWORD', '')
-MYSQL_SEAHUB_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAHUB_DB_NAME', 'seahub_db')
-MYSQL_SEAFILE_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAFILE_DB_NAME', 'seafile_db')
-MYSQL_CCNET_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_CCNET_DB_NAME', 'ccnet_db')
+MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db') or MYSQL_DB_HOST
+MYSQL_DB_PROT = os.environ.get('SEAFILE_MYSQL_DB_PORT', 3306) or MYSQL_DB_PROT
+MYSQL_DB_USER = os.environ.get('SEAFILE_MYSQL_DB_USER', 'root') or MYSQL_DB_USER
+MYSQL_DB_PWD = os.environ.get('SEAFILE_MYSQL_DB_PASSWORD', '') or MYSQL_DB_PWD
+MYSQL_SEAHUB_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAHUB_DB_NAME', 'seahub_db') or MYSQL_SEAHUB_DB_NAME
+MYSQL_SEAFILE_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAFILE_DB_NAME', 'seafile_db') or MYSQL_SEAFILE_DB_NAME
+MYSQL_CCNET_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_CCNET_DB_NAME', 'ccnet_db') or MYSQL_CCNET_DB_NAME
