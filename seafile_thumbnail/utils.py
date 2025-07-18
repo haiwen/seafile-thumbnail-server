@@ -199,11 +199,8 @@ class SeafileAPI(object):
         commit = commit_mgr.load_commit(self.repo_id, 0, commit_id)
         root_id = commit.root_id
         if origin_repo_id:
-            
             file_id = fs_mgr.get_file_id_by_path(origin_repo_id, 1, root_id, file_path)
-            f = fs_mgr.load_seafile(origin_repo_id, 1, file_id)
         else:
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
-            f = fs_mgr.load_seafile(self.repo_id, 1, file_id)
 
         return file_id
