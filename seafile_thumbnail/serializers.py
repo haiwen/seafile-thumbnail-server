@@ -1,15 +1,18 @@
 import hashlib
 import os
 import re
+import logging
 from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
-                                    normalize_share_cache_key
+                                    normalize_share_cache_key, normalize_file_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
-from seaserv import get_repo, seafile_api, get_file_size
 from seafile_thumbnail.cache import thumbnail_cache
+from seafile_thumbnail.utils import SeafileAPI
+
+logger = logging.getLogger(__name__)
 
 
 class ThumbnailSerializer(object):
@@ -42,21 +45,20 @@ class ThumbnailSerializer(object):
             file_path = path
         size = self.params['size']
         repo_id = self.params['repo_id']
+        file_path = normalize_file_path(file_path)
         file_name = os.path.basename(file_path)
         filetype, fileext = get_file_type_and_ext(file_name)
-
-        # resource check
-        repo = get_repo(repo_id)
+        seafile_api = SeafileAPI(repo_id)
+        repo = seafile_api.get_repo_info()
         if not repo:
             err_msg = "Library does not exist."
             raise AssertionError(400, err_msg)
-        if repo.encrypted:
+        if repo.get('is_encrypted'):
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)
 
-        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
-        file_id = file_obj.obj_id
-        file_size = get_file_size(repo.store_id, repo.version, file_id)
+        file_id = seafile_api.get_file_id_by_path(repo, file_path)
+        origin_repo_id = repo.get('origin_repo_id')
         self.get_enable_file_type()
         if filetype not in self.enable_file_type:
             raise AssertionError(400, 'file_type invalid.')
@@ -65,7 +67,9 @@ class ThumbnailSerializer(object):
         thumbnail_file = os.path.join(thumbnail_dir, file_id)
         if not os.path.exists(thumbnail_dir):
             os.makedirs(thumbnail_dir)
-        file_obj = seafile_api.get_dirent_by_path(repo_id, file_path)
+
+        file_obj = seafile_api.get_dirent_by_path(repo, file_path)
+        file_size = file_obj.size
         last_modified_time = file_obj.mtime
         last_modified = formatdate(int(last_modified_time), usegmt=True)
         etag = '"' + file_id + '"'
@@ -78,7 +82,8 @@ class ThumbnailSerializer(object):
             'thumbnail_dir': thumbnail_dir,
             'thumbnail_path': thumbnail_file,
             'last_modified': last_modified,
-            'etag': etag
+            'etag': etag,
+            'origin_repo_id': origin_repo_id
         }
 
     def get_enable_file_type(self):

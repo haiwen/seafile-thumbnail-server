@@ -50,14 +50,14 @@ class ThumbnailManager(object):
         self.tasks_map[task_id] = task
         return task_id, 200
 
-    def add_xmind_create_task(self, func, repo_id, path, size):
+    def add_xmind_create_task(self, func, repo_id, file_id, size):
         if self.image_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
-        task = (func, (repo_id, path, size))
+        task = (func, (repo_id, file_id, size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200

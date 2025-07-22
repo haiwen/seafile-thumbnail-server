@@ -2,9 +2,9 @@ import os
 import posixpath
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
-
-from seafobj import fs_mgr
-from seaserv import seafile_api
+from sqlalchemy import text
+from seafobj import fs_mgr, commit_mgr
+from seafile_thumbnail.db import init_db_session_class
 
 PREVIEW_FILEEXT = {
     IMAGE: ('gif', 'jpeg', 'jpg', 'png', 'ico', 'bmp', 'tif', 'tiff', 'psd', 'webp', 'jfif', 'heic'),
@@ -113,6 +113,17 @@ def normalize_dir_path(path):
     else:
         return '/' + path + '/'
 
+def normalize_file_path(path):
+    """Remove '/' at the end of file path if necessary.
+
+    And make sure path starts with '/'
+    """
+
+    path = path.strip('/')
+    if path == '':
+        return ''
+    else:
+        return '/' + path
 
 def normalize_share_cache_key(token, sessionid):
     return token + '_' + sessionid
@@ -122,9 +133,6 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     if obj_id == ZERO_OBJ_ID:
         return b''
     try:
-        repo = seafile_api.get_repo(repo_id)
-        if repo.is_virtual:
-            repo_id = repo.origin_repo_id
         f = fs_mgr.load_seafile(repo_id, 1, obj_id)
         b_content = f.get_content()
         if not b_content.strip():
@@ -132,3 +140,67 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     except Exception as e:
         raise Exception('Failed to get file content by obj id: %s' % e)
     return b_content
+
+
+class SeafileAPI(object):
+    def __init__(self, repo_id):
+        self.repo_id = repo_id
+        self.db_session_class = init_db_session_class('seafile')
+
+    def get_repo_info(self):
+        with self.db_session_class() as session:
+            sql = text("""
+                SELECT v.origin_repo as origin_repo_id, i.is_encrypted
+                FROM Repo r 
+                LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
+                LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
+                WHERE r.repo_id = :repo_id
+            """)
+
+            result = session.execute(sql, {"repo_id": self.repo_id}).first()
+            if not result:
+                return None
+            repo = {
+                'repo_id': self.repo_id,
+                'origin_repo_id': result.origin_repo_id,
+                'is_encrypted': result.is_encrypted,
+            }
+            return repo
+
+    
+    def _get_repo_head_commit(self):
+        try:
+            with self.db_session_class() as session:
+                sql = text("""SELECT b.commit_id, r.type
+                            from Branch as b inner join RepoInfo as r
+                            where b.repo_id=r.repo_id and b.repo_id=:repo_id"""
+                )
+                res = session.execute(sql, {'repo_id': self.repo_id}).first()
+                return res
+        except Exception as e:
+            raise e
+    
+    def get_dirent_by_path(self, repo, file_path):
+        commit_id = self._get_repo_head_commit()[0]
+        commit = commit_mgr.load_commit(self.repo_id, 0, commit_id)
+        root_id = commit.root_id
+        parent_path = os.path.dirname(file_path)
+        origin_repo_id = repo.get('origin_repo_id')
+        if origin_repo_id:
+            dir = fs_mgr.get_seafdir_by_path(origin_repo_id, 1, root_id, parent_path)
+        else:
+            dir = fs_mgr.get_seafdir_by_path(self.repo_id, 1, root_id, parent_path)
+        return dir.lookup_dent(os.path.basename(file_path))
+    
+    
+    def get_file_id_by_path(self, repo, file_path):
+        origin_repo_id = repo.get('origin_repo_id')
+        commit_id = self._get_repo_head_commit()[0]
+        commit = commit_mgr.load_commit(self.repo_id, 0, commit_id)
+        root_id = commit.root_id
+        if origin_repo_id:
+            file_id = fs_mgr.get_file_id_by_path(origin_repo_id, 1, root_id, file_path)
+        else:
+            file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
+
+        return file_id

@@ -4,3 +4,4 @@ psd-tools==1.10.*
 uvicorn==0.32.*
 pillow==10.4.*
 pyjwt==2.9.*
+sqlalchemy==2.0.*
