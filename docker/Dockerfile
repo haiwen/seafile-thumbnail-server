@@ -30,11 +30,8 @@ RUN mkdir -p /opt/seafile
 WORKDIR /opt/seafile
 COPY thumbnail-server /opt/seafile/thumbnail-server
 COPY seafobj/requirements.txt /opt/seafile/thumbnail-server/seafobj-requirements.txt
-COPY seafile /opt/seafile/seafile
 COPY seafobj/seafobj /opt/seafile/seafile/lib/python3/site-packages/seafobj
 COPY seafobj/objwrapper /opt/seafile/seafile/lib/python3/site-packages/objwrapper
-RUN ln -sf /opt/seafile/seafile/lib/libsearpc.so.1.0.2 /opt/seafile/seafile/lib/libsearpc.so.1 && \
-    ln -sf /opt/seafile/seafile/lib/libsearpc.so.1.0.2 /opt/seafile/seafile/lib/libsearpc.so
 
 RUN pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/requirements.txt && \
     pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/seafobj-requirements.txt && \ 

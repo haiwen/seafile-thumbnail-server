@@ -32,10 +32,6 @@ if [[ ! -e /shared/seafile/conf/seafile.conf ]]; then
     touch /shared/seafile/conf/seafile.conf
 fi
 
-if [[ ! -e /shared/seafile/seafile-data && ! -e /opt/seafile/seafile-data ]]; then
-    mkdir /shared/seafile/seafile-data
-fi
-
 if [[ ! -e /shared/seafile/seahub-data && ! -e /opt/seafile/seahub-data ]]; then
     mkdir /shared/seafile/seahub-data
 fi

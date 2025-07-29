@@ -1,7 +1,6 @@
 #!/bin/bash
 
 function stop_server() {
-    pkill -9 -f seaf-server
     pkill -9 -f main.py
 
     pkill -9 -f monitor
@@ -40,9 +39,6 @@ function start_server() {
     sleep 0.5
 
     set_env
-
-    seaf-server -F /opt/seafile/conf -d /opt/seafile/seafile-data -l /opt/seafile/logs/seafile.log -L /opt/seafile -P /opt/seafile/pids/seafile.pid - &
-    sleep 0.2
 
     cd /opt/seafile/thumbnail-server/
     /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &

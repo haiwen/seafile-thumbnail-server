@@ -38,17 +38,6 @@ function check_process() {
     echo $process_num
 }
 
-# monitor
-function monitor_seafile() {
-    process_name="seaf-server"
-    check_num=$(check_process $process_name)
-    if [ $check_num -eq 0 ]; then
-        log "Start $process_name"
-        seaf-server -F /opt/seafile/conf -d /opt/seafile/seafile-data -l /opt/seafile/logs/seafile.log -L /opt/seafile -P /opt/seafile/pids/seafile.pid - &
-        sleep 0.2
-    fi
-}
-
 function monitor_seafile_thumbnail() {
     process_name="main.py"
     check_num=$(check_process $process_name)
@@ -64,7 +53,6 @@ function monitor_seafile_thumbnail() {
 log "Start Monitor"
 
 while [ 1 ]; do
-    monitor_seafile
     monitor_seafile_thumbnail
 
     sleep 30
