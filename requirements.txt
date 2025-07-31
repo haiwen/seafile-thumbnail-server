@@ -1,8 +1,8 @@
 requests==2.32.*
-pillow_heif==0.18.*
+pillow_heif==1.0.*
 psd-tools==1.10.*
 uvicorn==0.32.*
-pillow==10.4.*
-pyjwt==2.9.*
+pillow==11.3.*
+pyjwt==2.10.*
 sqlalchemy==2.0.*
 pillow-heif==0.18.*
