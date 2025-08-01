@@ -5,3 +5,4 @@ uvicorn==0.32.*
 pillow==10.4.*
 pyjwt==2.9.*
 sqlalchemy==2.0.*
+pillow-heif==0.18.*
