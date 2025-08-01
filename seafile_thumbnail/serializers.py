@@ -58,6 +58,10 @@ class ThumbnailSerializer(object):
             raise AssertionError(403, err_msg)
 
         file_id = seafile_api.get_file_id_by_path(repo, file_path)
+        if not file_id:
+            err_msg = "File does not exist."
+            raise AssertionError(404, err_msg)
+
         origin_repo_id = repo.get('origin_repo_id')
         self.get_enable_file_type()
         if filetype not in self.enable_file_type:
@@ -102,8 +106,8 @@ class ThumbnailSerializer(object):
         if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url):
             match = re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url)
             query_dict = self.request.query_dict
-            path = query_dict['path'][0]
-            size = query_dict['size'][0]
+            path = query_dict['path'][0] if 'path' in query_dict else None
+            size = query_dict['size'][0] if 'size' in query_dict else None
             repo_id = match.group('repo_id')
 
             if not size:
@@ -123,8 +127,10 @@ class ThumbnailSerializer(object):
         elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
             match = re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url)
             token = match.group('token')
-            path = self.request.query_dict['path'][0]
-            size = self.request.query_dict['size'][0]
+            query_dict = self.request.query_dict
+            path = query_dict['path'][0] if 'path' in query_dict else None
+            size = query_dict['size'][0] if 'size' in query_dict else None
+
             if not size:
                 size = settings.THUMBNAIL_DEFAULT_SIZE
             if not path or '../' in path:
@@ -135,9 +141,13 @@ class ThumbnailSerializer(object):
             token = match.group('token')
             size = match.group('size')
             path = match.group('path')
+            
             if not path or '../' in path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
+        else:
+            err_msg = 'Page not found.'
+            raise AssertionError(404, err_msg)
 
         self.params = {
             'repo_id': repo_id,
