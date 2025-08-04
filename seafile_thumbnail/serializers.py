@@ -172,11 +172,16 @@ class ThumbnailSerializer(object):
 
     def permission_check(self):
         dir_path = normalize_dir_path(os.path.dirname(self.params['file_path']))
-        perm_key_md5 = hashlib.md5((self.params['repo_id'] + dir_path + self.session_key).encode('utf-8')).hexdigest()
+        auth_token_list = self.request.headers.get('authorization')
+        auth_token = auth_token_list[0] if auth_token_list else None
+        if auth_token:
+            perm_key_md5 = hashlib.md5((self.params['repo_id'] + dir_path + auth_token).encode('utf-8')).hexdigest()
+        else:
+            perm_key_md5 = hashlib.md5((self.params['repo_id'] + dir_path + self.session_key).encode('utf-8')).hexdigest()
         perm_cache = thumbnail_cache.get(perm_key_md5)
         if perm_cache:
             return
-        permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'])
+        permission = jwt_permission_check(self.session_key, self.params['repo_id'], self.params['file_path'], auth_token)
         if not permission:
             err_msg = "Permission denied."
             raise AssertionError(403, err_msg)

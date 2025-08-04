@@ -14,17 +14,22 @@ def get_jwt_url(repo_id):
     return jwt_url
 
 
-def jwt_permission_check(session_key, repo_id, path):
+def jwt_permission_check(session_key, repo_id, path, auth_token=None):
     jwt_url = get_jwt_url(repo_id)
-    payload = {
-        'is_internal': True,
-        'exp': int(time.time()) + 300
-    }
-    jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
-    headers = {
-        'Authorization': f'token {jwt_token}',
-        'Cookie': "sessionid=%s" % session_key
-    }
+    if auth_token:
+        headers = {
+            'Authorization': auth_token
+        }
+    else:
+        payload = {
+            'is_internal': True,
+            'exp': int(time.time()) + 300
+        }
+        jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
+        headers = {
+            'Authorization': f'token {jwt_token}',
+            'Cookie': "sessionid=%s" % session_key
+        }
     try:
         response = requests.post(jwt_url, data={'path': path}, headers=headers)
         if response.status_code != 200:
