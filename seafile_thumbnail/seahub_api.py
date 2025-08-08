@@ -14,19 +14,31 @@ def get_jwt_url(repo_id):
     return jwt_url
 
 
-def jwt_permission_check(session_key, repo_id, path):
-    jwt_url = get_jwt_url(repo_id)
-    payload = {
-        'is_internal': True,
-        'exp': int(time.time()) + 300
-    }
-    jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
-    headers = {
-        'Authorization': f'token {jwt_token}',
-        'Cookie': "sessionid=%s" % session_key
-    }
+def get_user_auth_url(repo_id):
+    url = '%s/api/v2.1/internal/repos/%s/check-thumbnail/user-token/' % (
+        INNER_SEAHUB_SERVICE_URL.rstrip('/'), repo_id)
+    return url
+
+
+def jwt_permission_check(session_key, repo_id, path, auth_token=None):
+    url = get_jwt_url(repo_id)
+    if auth_token:
+        url = get_user_auth_url(repo_id)
+        headers = {
+            'Authorization': auth_token
+        }
+    else:
+        payload = {
+            'is_internal': True,
+            'exp': int(time.time()) + 300
+        }
+        jwt_token = jwt.encode(payload, JWT_PRIVATE_KEY, algorithm='HS256')
+        headers = {
+            'Authorization': f'token {jwt_token}',
+            'Cookie': "sessionid=%s" % session_key
+        }
     try:
-        response = requests.post(jwt_url, data={'path': path}, headers=headers)
+        response = requests.post(url, data={'path': path}, headers=headers)
         if response.status_code != 200:
             error_msg = 'Internal Server Error'
             logger.error(error_msg)
