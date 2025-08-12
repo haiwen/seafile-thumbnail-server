@@ -4,5 +4,5 @@ psd-tools==1.10.*
 uvicorn==0.35.*
 pillow==11.3.*
 pyjwt==2.10.*
-sqlalchemy==2.0.*
-pillow-heif==0.18.*
+SQLAlchemy==2.0.*
+pillow-heif==1.0.*
