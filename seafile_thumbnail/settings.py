@@ -26,8 +26,7 @@ THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT = 256
 
 # for thumbnail: height(px) and width(px)
 THUMBNAIL_DEFAULT_SIZE = 256
-THUMBNAIL_SIZE_FOR_GRID = 512
-THUMBNAIL_SIZE_FOR_ORIGINAL = 1024
+THUMBNAIL_SIZE_LIMIT = [256, 512, 1024]
 
 # Absolute filesystem path to the directory that will hold thumbnail files.
 SEAHUB_DATA_ROOT = os.path.join(PROJECT_ROOT, '../../seahub-data')
