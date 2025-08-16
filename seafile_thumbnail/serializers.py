@@ -114,7 +114,7 @@ class ThumbnailSerializer(object):
                 size = settings.THUMBNAIL_DEFAULT_SIZE
                 
             if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
-                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(str(i) for i in settings.THUMBNAIL_SIZE_LIMIT)
                 raise AssertionError(400, err_msg)
 
             if not path:
@@ -127,7 +127,7 @@ class ThumbnailSerializer(object):
             path = match.group('path')
 
             if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
-                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(str(i) for i in settings.THUMBNAIL_SIZE_LIMIT)
                 raise AssertionError(400, err_msg)
 
             if not path:
@@ -144,7 +144,7 @@ class ThumbnailSerializer(object):
                 size = settings.THUMBNAIL_DEFAULT_SIZE
             
             if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
-                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(str(i) for i in settings.THUMBNAIL_SIZE_LIMIT)
                 raise AssertionError(400, err_msg)
 
             if not path or '../' in path:
@@ -157,7 +157,7 @@ class ThumbnailSerializer(object):
             path = match.group('path')
 
             if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
-                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(str(i) for i in settings.THUMBNAIL_SIZE_LIMIT)
                 raise AssertionError(400, err_msg)
             
             if not path or '../' in path:
