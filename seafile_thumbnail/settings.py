@@ -26,7 +26,7 @@ THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT = 256
 
 # for thumbnail: height(px) and width(px)
 THUMBNAIL_DEFAULT_SIZE = 256
-THUMBNAIL_SIZE_LIMIT = []
+THUMBNAIL_SIZE_LIMIT = [THUMBNAIL_DEFAULT_SIZE, 512, 1024]
 
 # Absolute filesystem path to the directory that will hold thumbnail files.
 SEAHUB_DATA_ROOT = os.path.join(PROJECT_ROOT, '../../seahub-data')
@@ -69,7 +69,6 @@ try:
 except ImportError as e:
     pass
 
-THUMBNAIL_SIZE_LIMIT.extend([THUMBNAIL_DEFAULT_SIZE, 512, 1024])
 # ======================== settings in env ======================= #
 INNER_SEAHUB_SERVICE_URL = os.getenv('INNER_SEAHUB_SERVICE_URL') or INNER_SEAHUB_SERVICE_URL
 SITE_ROOT = os.getenv('SITE_ROOT') or SITE_ROOT
