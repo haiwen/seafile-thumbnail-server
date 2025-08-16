@@ -112,6 +112,11 @@ class ThumbnailSerializer(object):
 
             if not size:
                 size = settings.THUMBNAIL_DEFAULT_SIZE
+                
+            if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                raise AssertionError(400, err_msg)
+
             if not path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
@@ -120,6 +125,10 @@ class ThumbnailSerializer(object):
             repo_id = match.group('repo_id')
             size = match.group('size')
             path = match.group('path')
+
+            if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                raise AssertionError(400, err_msg)
 
             if not path:
                 err_msg = "Invalid arguments."
@@ -133,6 +142,11 @@ class ThumbnailSerializer(object):
 
             if not size:
                 size = settings.THUMBNAIL_DEFAULT_SIZE
+            
+            if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                raise AssertionError(400, err_msg)
+
             if not path or '../' in path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
@@ -141,6 +155,10 @@ class ThumbnailSerializer(object):
             token = match.group('token')
             size = match.group('size')
             path = match.group('path')
+
+            if int(size) not in settings.THUMBNAIL_SIZE_LIMIT:
+                err_msg = 'Thumbnail size is invalid, available sizes are %s' % ','.join(settings.THUMBNAIL_SIZE_LIMIT)
+                raise AssertionError(400, err_msg)
             
             if not path or '../' in path:
                 err_msg = "Invalid arguments."
