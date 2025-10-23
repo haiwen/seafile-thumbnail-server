@@ -35,11 +35,11 @@ class ThumbnailSerializer(object):
     def resource_check(self):
         # get share real path
         file_path = self.params.get('file_path', '')
-        if re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
+        if re.match('^/thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
             path = get_real_path_by_fs_and_req_path(self.params['share_type'], self.params['share_path'], self.params['file_path'])
             self.params['share_create_file_path'] = path
             file_path = path
-        if re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+        if re.match('^/thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
             path = get_real_path_by_fs_and_req_path(self.params['share_type'], self.params['share_path'], self.params['file_path'])
             self.params['file_path'] = path
             file_path = path
@@ -103,8 +103,8 @@ class ThumbnailSerializer(object):
     def params_check(self):
         token = None
         repo_id = None
-        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url):
-            match = re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url)
+        if re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url):
+            match = re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url)
             query_dict = self.request.query_dict
             path = query_dict['path'][0] if 'path' in query_dict else None
             size = query_dict['size'][0] if 'size' in query_dict else None
@@ -120,8 +120,8 @@ class ThumbnailSerializer(object):
             if not path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
-        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
-            match = re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url)
+        elif re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+            match = re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url)
             repo_id = match.group('repo_id')
             size = match.group('size')
             path = match.group('path')
@@ -133,8 +133,8 @@ class ThumbnailSerializer(object):
             if not path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
-            match = re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url)
+        elif re.match('^/thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
+            match = re.match('^/thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url)
             token = match.group('token')
             query_dict = self.request.query_dict
             path = query_dict['path'][0] if 'path' in query_dict else None
@@ -150,8 +150,8 @@ class ThumbnailSerializer(object):
             if not path or '../' in path:
                 err_msg = "Invalid arguments."
                 raise AssertionError(400, err_msg)
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
-            match = re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url)
+        elif re.match('^/thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+            match = re.match('^/thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url)
             token = match.group('token')
             size = match.group('size')
             path = match.group('path')
@@ -181,11 +181,11 @@ class ThumbnailSerializer(object):
             session_key = ''
         self.session_key = session_key
 
-        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
-                re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
+        if re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', self.request.url) or \
+                re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url):
             self.permission_check()
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url) or \
-                re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
+        elif re.match('^/thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', self.request.url) or \
+                re.match('^/thumbnail/(?P<token>[a-f0-9]+)/create/$', self.request.url):
             self.jwt_share_permission_check()
 
     def permission_check(self):

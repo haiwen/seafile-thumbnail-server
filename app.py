@@ -22,7 +22,7 @@ class App:
             return
 
         # ------ping
-        if request.url in ('ping', 'ping/'):
+        if request.url in ('/ping', '/ping/'):
             response_stat, response_body = gen_text_response('pong')
             await send(response_stat)
             await send(response_body)
@@ -51,7 +51,7 @@ class App:
             return
         # ========= router=======
         # ------thumbnail
-        if re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
+        if re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/create/$', request.url):
             # cache
             try:
                 if cache_check(request, thumbnail_info):
@@ -66,7 +66,7 @@ class App:
             await send(response_start)
             await send(response_body)
             return
-        elif re.match('^thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
+        elif re.match('^/thumbnail/(?P<repo_id>[-0-9a-f]{36})/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
             # cache
             try:
                 if cache_check(request, thumbnail_info):
@@ -80,7 +80,7 @@ class App:
             await send(response_start)
             await send(response_body)
             return
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/create/$', request.url):
+        elif re.match('^/thumbnail/(?P<token>[a-f0-9]+)/create/$', request.url):
             # cache
             try:
                 if cache_check(request, thumbnail_info):
@@ -94,7 +94,7 @@ class App:
             await send(response_start)
             await send(response_body)
             return
-        elif re.match('^thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
+        elif re.match('^/thumbnail/(?P<token>[a-f0-9]+)/(?P<size>[0-9]+)/(?P<path>.*)$', request.url):
             # cache
             try:
                 if cache_check(request, thumbnail_info):
