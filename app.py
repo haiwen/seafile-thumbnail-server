@@ -22,12 +22,12 @@ class App:
             return
 
         # ------ping
-        if request.url in ('/ping', '/ping/'):
+        if request.url in ('/thumbnail/ping', '/thumbnail/ping/', '/ping', '/ping/'):
             response_stat, response_body = gen_text_response('pong')
             await send(response_stat)
             await send(response_body)
             return
-        
+
         # serialize check
         try:
             serializer = ThumbnailSerializer(request)
