@@ -6,3 +6,4 @@ pillow==11.3.*
 pyjwt==2.10.*
 SQLAlchemy==2.0.*
 pillow-heif==1.0.*
+cairosvg==2.8.*

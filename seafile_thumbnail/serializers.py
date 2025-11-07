@@ -5,7 +5,7 @@ import logging
 from email.utils import formatdate
 
 from seafile_thumbnail import settings
-from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF
+from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF, SVG
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
                                     normalize_share_cache_key, normalize_file_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
@@ -91,7 +91,7 @@ class ThumbnailSerializer(object):
         }
 
     def get_enable_file_type(self):
-        enable_file_type = [IMAGE]
+        enable_file_type = [IMAGE, SVG]
         if settings.ENABLE_VIDEO_THUMBNAIL:
             enable_file_type.append(VIDEO)
         if settings.ENABLE_XMIND_THUMBNAIL:
