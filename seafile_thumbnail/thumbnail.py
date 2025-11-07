@@ -8,7 +8,7 @@ from io import BytesIO
 from PIL import Image
 
 from seafile_thumbnail.utils import get_file_content_by_obj_id
-from seafile_thumbnail.constants import VIDEO, PDF, XMIND
+from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
@@ -127,6 +127,13 @@ def generate_thumbnail(request, thumbnail_info):
                                                              size, thumbnail_file, file_size)
         if status != 200:
                 return (task_id, status)
+        return (task_id, 200)
+    
+    if filetype == SVG:
+        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_svg_thumbnails, repo_id, file_id, path,
+                                                                            size, thumbnail_file, file_size)
+        if status != 200:
+            return (task_id, status)
         return (task_id, 200)
 
     task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
@@ -293,7 +300,40 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
             os.unlink(tmp_image_path)
             os.remove(tmp_video_path)
         raise e
+    
 
+def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
+    try:
+        import cairosvg
+    except ImportError:
+        logger.error("Could not find cairosvg installed. "
+                     "Please install by 'pip install cairosvg' (requires system cairo library)")
+        raise Exception("Missing dependency: cairosvg")
+    
+    svg_content = get_file_content_by_obj_id(repo_id, file_id)
+    tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    try:
+        t1 = timeit.default_timer()
+        cairosvg.svg2png(
+            bytestring=svg_content,
+            write_to=tmp_png_path,
+            dpi=200,
+            output_width=size,
+            output_height=size
+        )
+        
+        t2 = timeit.default_timer()
+        logger.debug(f"Convert SVG [{path}] to PNG takes: {t2 - t1:.2f}s (size: {file_size} bytes)")
+        
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+        os.unlink(tmp_png_path)
+        return
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Failed to generate SVG thumbnail for [{path}]: {str(e)}")
+        os.unlink(tmp_png_path)
+        raise e
+        
 
 def _create_thumbnail_common(fp, thumbnail_file, size):
     """Common logic for creating image thumbnail.
