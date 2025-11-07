@@ -151,7 +151,7 @@ class SeafileAPI(object):
         with self.db_session_class() as session:
             sql = text("""
                 SELECT v.origin_repo as origin_repo_id, i.is_encrypted
-                FROM Repo r 
+                FROM Repo r
                 LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
                 LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
                 WHERE r.repo_id = :repo_id
@@ -166,15 +166,15 @@ class SeafileAPI(object):
                 'is_encrypted': result.is_encrypted,
             }
             return repo
-
     
     def _get_repo_head_commit(self):
         try:
             with self.db_session_class() as session:
                 sql = text("""SELECT b.commit_id, r.type
-                            from Branch as b inner join RepoInfo as r
-                            where b.repo_id=r.repo_id and b.repo_id=:repo_id"""
-                )
+                            FROM Branch as b
+                            INNER JOIN RepoInfo as r ON b.repo_id = r.repo_id
+                            WHERE b.repo_id = :repo_id"""
+                           )
                 res = session.execute(sql, {'repo_id': self.repo_id}).first()
                 return res
         except Exception as e:
@@ -191,8 +191,7 @@ class SeafileAPI(object):
         else:
             dir = fs_mgr.get_seafdir_by_path(self.repo_id, 1, root_id, parent_path)
         return dir.lookup_dent(os.path.basename(file_path))
-    
-    
+
     def get_file_id_by_path(self, repo, file_path):
         origin_repo_id = repo.get('origin_repo_id')
         commit_id = self._get_repo_head_commit()[0]

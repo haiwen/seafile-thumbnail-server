@@ -27,11 +27,11 @@ def create_engine_from_env(db='seahub'):
 
     db_name = ''
     if db == 'seahub':
-        db_name = MYSQL_SEAHUB_DB_NAME
+        db_name = MYSQL_SEAHUB_DB_NAME or 'SYSDBA'
     elif db == 'seafile':
-        db_name = MYSQL_SEAFILE_DB_NAME
+        db_name = MYSQL_SEAFILE_DB_NAME or 'SYSDBA'
     elif db == 'ccnet':
-        db_name = MYSQL_CCNET_DB_NAME
+        db_name = MYSQL_CCNET_DB_NAME or 'SYSDBA'
 
     db_host = MYSQL_DB_HOST
     db_port = MYSQL_DB_PORT
@@ -41,7 +41,8 @@ def create_engine_from_env(db='seahub'):
     if not (db_name and db_host and db_port and db_user):
         raise RuntimeError('Database configured error')
     
-    db_url = "mysql+pymysql://%s:%s@%s:%s/%s?charset=utf8" % (db_user, quote_plus(db_pwd), db_host, db_port, db_name)
+    db_url = "dm+dmPython://%s:%s@%s:%s/?schema=%s" % (db_user, quote_plus(db_pwd), db_host, db_port, db_name)
+
     kwargs = dict(pool_recycle=300, echo=False, echo_pool=False)
 
     engine = create_engine(db_url, **kwargs)
