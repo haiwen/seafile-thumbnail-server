@@ -41,10 +41,16 @@ function start_server() {
     set_env
 
     cd /opt/seafile/thumbnail-server/
-    /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
+
+    # Support NON_ROOT even when called manually
+    if [[ "${NON_ROOT}" == "true" ]]; then
+        /sbin/setuser seafile /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
+    else
+        /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
+    fi
     sleep 0.2
 
-    /scripts/monitor.sh &>> /opt/seafile/logs/monitor.log &
+    # Note: monitor.sh removed - thumbnail-server is now managed by runit service
 
     echo "thumbnail-server started"
     echo

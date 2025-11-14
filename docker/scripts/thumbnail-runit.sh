@@ -18,6 +18,7 @@ export PATH=/opt/seafile/seafile/bin/:$PATH
 export SEAFILE_CONF_DIR=/opt/seafile/seafile-data
 export SEAFILE_CENTRAL_CONF_DIR=/opt/seafile/conf
 export CONF_DIR=/opt/seafile/conf
+# Paths must match enterpoint.sh for NON_ROOT chown
 export LOG_DIR=/opt/seafile/logs
 export THUMBNAIL_ROOT=/opt/seafile/seahub-data/thumbnail
 
@@ -30,7 +31,23 @@ export SITE_ROOT=${SITE_ROOT:-/}
 
 cd /opt/seafile/thumbnail-server/
 
-# Run as root (NON_ROOT support will be added in next task)
+# Startup message to STDOUT (captured by docker logs)
+echo "Starting Seafile Thumbnail"
+
+# Wait for seafile user to be created when NON_ROOT mode is enabled
+if [[ "${NON_ROOT}" == "true" ]]; then
+    echo "Waiting for seafile user to be created..."
+    while ! id seafile &>/dev/null; do
+        sleep 0.1
+    done
+    echo "seafile user ready"
+fi
+
+# Use setuser if NON_ROOT, otherwise run directly (backward compatible)
 # Use exec for proper signal forwarding
 # Redirect to log file instead of stdout (like monitor.sh does)
-exec /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+if [[ "${NON_ROOT}" == "true" ]]; then
+    exec /sbin/setuser seafile /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+else
+    exec /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+fi
