@@ -28,9 +28,7 @@ chmod 0644 /scripts/logrotate-conf/logrotate-cron
 
 
 # autorun
-log "Starting Seafile Thumbnail"
-
-/scripts/thumbnail-server.sh start
+# Thumbnail-server is now managed by runit (no manual start needed)
 
 wait
 

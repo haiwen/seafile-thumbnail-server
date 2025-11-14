@@ -46,6 +46,11 @@ RUN mkdir -p /etc/service/nginx && \
 	mv /scripts/nginx.sh /etc/service/nginx/run && \
     mv /scripts/default /etc/nginx/sites-enabled/default
 
+# Create thumbnail-server runit service
+RUN mkdir -p /etc/service/thumbnail && \
+    mv /scripts/thumbnail-runit.sh /etc/service/thumbnail/run && \
+    chmod +x /etc/service/thumbnail/run
+
 # my_init
 RUN rm -rf /etc/my_init.d/*
 COPY scripts/01_init.sh /etc/my_init.d/01_init.sh

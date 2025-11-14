@@ -1,10 +1,20 @@
 #!/bin/bash
 
+# Wait for nginx to be ready (backward compatibility)
+while [ 1 ]; do
+    process_num=$(ps -ef | grep "/usr/sbin/nginx" | grep -v "grep" | wc -l)
+    if [ $process_num -eq 0 ]; then
+        sleep 0.2
+    else
+        break
+    fi
+done
+
+# Set environment variables (from monitor.sh)
 export SRC_DIR=/opt/seafile/
 export LD_LIBRARY_PATH=/opt/seafile/seafile/lib/
 export PYTHONPATH=/opt/seafile/seafile/lib/python3/site-packages/:/usr/lib/python3.12/dist-packages:/usr/lib/python3.12/site-packages:/usr/local/lib/python3.12/dist-packages:/usr/local/lib/python3.12/site-packages
 export PATH=/opt/seafile/seafile/bin/:$PATH
-
 export SEAFILE_CONF_DIR=/opt/seafile/seafile-data
 export SEAFILE_CENTRAL_CONF_DIR=/opt/seafile/conf
 export CONF_DIR=/opt/seafile/conf
@@ -18,42 +28,9 @@ export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seaf
 export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=${SEAFILE_MYSQL_DB_SEAHUB_DB_NAME:-seahub_db}
 export SITE_ROOT=${SITE_ROOT:-/}
 
+cd /opt/seafile/thumbnail-server/
 
-# log function
-function log() {
-    local time=$(date +"%F %T")
-    local level=${2:-INFO}
-    echo "[thumbnail-server] [$time] [$level] $1 "
-}
-
-# check process number
-# $1 : process name
-function check_process() {
-    if [ -z $1 ]; then
-        log "Input parameter is empty."
-        return 0
-    fi
-
-    process_num=$(ps -ef | grep "$1" | grep -v "grep" | wc -l)
-    echo $process_num
-}
-
-function monitor_seafile_thumbnail() {
-    process_name="main.py"
-    check_num=$(check_process $process_name)
-    if [ $check_num -eq 0 ]; then
-        log "Start $process_name"
-        cd /opt/seafile/thumbnail-server/
-        /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
-        sleep 0.2
-    fi
-}
-
-
-log "Start Monitor"
-
-while [ 1 ]; do
-    monitor_seafile_thumbnail
-
-    sleep 30
-done
+# Run as root (NON_ROOT support will be added in next task)
+# Use exec for proper signal forwarding
+# Redirect to log file instead of stdout (like monitor.sh does)
+exec /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
