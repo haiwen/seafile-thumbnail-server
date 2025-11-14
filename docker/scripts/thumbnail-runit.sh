@@ -43,11 +43,21 @@ if [[ "${NON_ROOT}" == "true" ]]; then
     echo "seafile user ready"
 fi
 
-# Use setuser if NON_ROOT, otherwise run directly (backward compatible)
-# Use exec for proper signal forwarding
-# Redirect to log file instead of stdout (like monitor.sh does)
-if [[ "${NON_ROOT}" == "true" ]]; then
-    exec /sbin/setuser seafile /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+# Respect SEAFILE_LOG_TO_STDOUT environment variable
+if [[ "${SEAFILE_LOG_TO_STDOUT}" == "true" ]]; then
+    # Log to stdout - runit captures it, available in docker logs
+    # Merge stderr to stdout for proper logging
+    exec 2>&1
+    if [[ "${NON_ROOT}" == "true" ]]; then
+        exec /sbin/setuser seafile /usr/bin/python3 main.py
+    else
+        exec /usr/bin/python3 main.py
+    fi
 else
-    exec /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+    # Log to file (default behavior, backward compatible)
+    if [[ "${NON_ROOT}" == "true" ]]; then
+        exec /sbin/setuser seafile /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+    else
+        exec /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log
+    fi
 fi
