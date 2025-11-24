@@ -43,7 +43,6 @@ def screenshot_from_url(url, save_path, div_selector="#sdoc-editor-print-wrapper
             context.add_cookies(playwright_cookies)
         try:
             response = page.goto(url, wait_until="domcontentloaded", timeout=60000)  # 超时设为60秒
-            print(response.status, 'ssssssssss')
             if response.status > 400:
                 raise Exception(f"Go to url: {url} failed.")
             
