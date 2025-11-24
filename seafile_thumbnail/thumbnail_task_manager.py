@@ -61,11 +61,23 @@ class ThumbnailManager(object):
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
+    
+    def add_seadoc_create_task(self, func, request, repo_id, file_id, path, size, thumbnail_file, file_size):
+        if self.image_queue.full():
+            logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
+                            % (self.image_queue.qsize(), self.current_task_info,
+                            self.threads_is_alive()))
+            return ('thumbnail server busy.', 503)
+        task_id = str(uuid.uuid4())
+        task = (func, (request, repo_id, file_id, path, size, thumbnail_file, file_size))
+        self.image_queue.put(task_id)
+        self.tasks_map[task_id] = task
+        return task_id, 200
 
     def add_video_task(self, func, repo, file_id, size, thumbnail_file):
         if self.video_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
-                            % (self.image_queue.qsize(), self.current_task_info,
+                            % (self.video_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
@@ -158,7 +170,8 @@ class ThumbnailManager(object):
                     self.task_results_map[image_id] = 'error_' + str(e.args[0])
                 else:
                     self.task_results_map[image_id] = 'error_' + str(e)
-                logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                logger.exception('Failed to handle task %s, error: %s \n' % (task_info, e))
+                
                 self.current_task_info.pop(image_id, None)
             finally:
                 self.tasks_map.pop(image_id, None)

@@ -5,7 +5,7 @@ import logging
 from email.utils import formatdate
 
 from seafile_thumbnail import settings
-from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF, SVG
+from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF, SVG, SEADOC
 from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
                                     normalize_share_cache_key, normalize_file_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
@@ -87,11 +87,12 @@ class ThumbnailSerializer(object):
             'thumbnail_path': thumbnail_file,
             'last_modified': last_modified,
             'etag': etag,
-            'origin_repo_id': origin_repo_id
+            'origin_repo_id': origin_repo_id,
+            'origin_parent_path': repo.get('path')
         }
 
     def get_enable_file_type(self):
-        enable_file_type = [IMAGE, SVG]
+        enable_file_type = [IMAGE, SVG, SEADOC]
         if settings.ENABLE_VIDEO_THUMBNAIL:
             enable_file_type.append(VIDEO)
         if settings.ENABLE_XMIND_THUMBNAIL:
