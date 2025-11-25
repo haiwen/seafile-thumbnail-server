@@ -14,6 +14,8 @@ class ThumbnailManager(object):
         self.task_results_map = {}
         self.image_queue = queue.Queue(32)
         self.video_queue = queue.Queue(32)
+
+        self.seadoc_queue = queue.Queue(32)
         self.current_task_info = {}
         self.threads = []
 
@@ -63,14 +65,14 @@ class ThumbnailManager(object):
         return task_id, 200
     
     def add_seadoc_create_task(self, func, request, repo_id, file_id, path, size, thumbnail_file, file_size):
-        if self.image_queue.full():
+        if self.seadoc_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
-                            % (self.image_queue.qsize(), self.current_task_info,
+                            % (self.seadoc_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
         task_id = str(uuid.uuid4())
         task = (func, (request, repo_id, file_id, path, size, thumbnail_file, file_size))
-        self.image_queue.put(task_id)
+        self.seadoc_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
 
@@ -116,6 +118,11 @@ class ThumbnailManager(object):
                     if thread.name.startswith('ImageManager'):
                         new_thread = threading.Thread(
                             target=self.handle_image_task, 
+                            name=thread.name
+                        )
+                    elif thread.name.startswith('SeadocManager'):
+                        new_thread = threading.Thread(
+                            target=self.handle_seadoc_task,
                             name=thread.name
                         )
                     else:  # VideoManager
@@ -211,19 +218,60 @@ class ThumbnailManager(object):
                 self.current_task_info.pop(video_id, None)
             finally:
                 self.tasks_map.pop(video_id, None)
+                
+    def handle_seadoc_task(self):
+        while True:
+            try:
+                seadoc_id = self.seadoc_queue.get(timeout=2)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(e)
+                continue
+            task = self.tasks_map.get(seadoc_id)
+            if type(task) != tuple or len(task) < 1:
+                continue
+            task_info = seadoc_id + ' ' + str(task[0])
+            try:
+                self.current_task_info[seadoc_id] = task_info
+                logging.info('Run task: %s' % task_info)
+                logging.debug('Thread name: %s, threads is_alive: %s seadoc_queue: %s seadoc_queue size: %d'
+                            % (threading.current_thread().name, self.threads_is_alive(), self.seadoc_queue.queue, self.seadoc_queue.qsize()))
+                start_time = time.time()
+                # run
+                task[0](*task[1])
+                self.task_results_map[seadoc_id] = 'success'
+                finish_time = time.time()
+                logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
+                self.current_task_info.pop(seadoc_id, None)
+            except Exception as e:
+                # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
+                if len(e.args) > 0:
+                    self.task_results_map[seadoc_id] = 'error_' + str(e.args[0])
+                else:
+                    self.task_results_map[seadoc_id] = 'error_' + str(e)
+                logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                self.current_task_info.pop(seadoc_id, None)
+            finally:
+                self.tasks_map.pop(seadoc_id, None)
 
     def run(self, task_workers=3):
         image_name = 'ImageManager Thread-'
         video_name = 'VideoManager Thread-'
+        seadoc_name = 'SeadocManager Thread-'
         for thread_num in range(task_workers):
             image_t = threading.Thread(target=self.handle_image_task, name=image_name+str(thread_num))
             video_t = threading.Thread(target=self.handle_video_task, name=video_name+str(thread_num))
+            seadoc_t = threading.Thread(target=self.handle_seadoc_task, name=seadoc_name+str(thread_num))
             image_t.setDaemon(True)
             video_t.setDaemon(True)
+            seadoc_t.setDaemon(True)
             image_t.start()
             video_t.start()
+            seadoc_t.start()
             self.threads.append(image_t)
             self.threads.append(video_t)
+            self.threads.append(seadoc_t)
 
         # start the thread monitor
         monitor = threading.Thread(target=self.check_and_restart_threads, name="ThreadMonitor")
