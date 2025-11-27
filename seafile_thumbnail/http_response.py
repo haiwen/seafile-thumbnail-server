@@ -114,6 +114,7 @@ async def thumbnail_get(request, thumbnail_info):
     thumbnail_file = thumbnail_info['thumbnail_path']
     last_modified = thumbnail_info['last_modified']
     etag = thumbnail_info['etag']
+    
     if not os.path.exists(thumbnail_file):
         task_result, status = generate_thumbnail(request, thumbnail_info)
         if status >= 500:
@@ -141,7 +142,8 @@ async def thumbnail_get(request, thumbnail_info):
                 response_start['headers'].append([b'ETag', etag.encode('utf-8')])
 
             return response_start, response_body
-    except:
+    except Exception as e:
+        logger.error(e)
         err_msg = 'Failed to get thumbnail.'
         return gen_error_response(400, err_msg)
 
@@ -217,6 +219,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
             response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
             response_body = gen_response_body(thumbnail)
             return response_start, response_body
-    except:
+    except Exception as e:
+        logger.error(e)
         err_msg = 'Failed to get thumbnail.'
         return gen_error_response(400, err_msg)

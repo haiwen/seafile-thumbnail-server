@@ -149,6 +149,14 @@ def uuid_str_to_36_chars(file_uuid):
         return str(uuid.UUID(file_uuid))
     else:
         return file_uuid
+    
+    
+def gen_thumbnail_file_prefix(repo_id, file_path):
+    repo_id_file_path_md5 = hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
+    return f"{repo_id_file_path_md5}"
+
+
+
 
 
 class SeafileAPI(object):

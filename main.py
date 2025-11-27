@@ -5,6 +5,7 @@ import logging.handlers
 import os
 import argparse
 from app import app
+from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
 from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS
@@ -19,6 +20,7 @@ class ThumbnailServer(Thread):
 
         config = uvicorn.Config(app, port=8088)
         self._server = uvicorn.Server(config)
+        get_playwright_manager().start()
 
     def run(self):
         logging.info('Starting seafile thumbnail server...')

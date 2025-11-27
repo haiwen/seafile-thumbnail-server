@@ -2,14 +2,17 @@ import posixpath
 import subprocess
 import logging
 import os
+import hashlib
+import shutil
 import tempfile
 import timeit
 import zipfile
 from io import BytesIO
 from PIL import Image
 
-from seafile_thumbnail.screenshot import screenshot_from_url, gen_thumbnail_access_token
-from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI
+from seafile_thumbnail.screenshot import gen_thumbnail_access_token, get_playwright_manager
+from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI, \
+    gen_thumbnail_file_prefix
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
@@ -361,12 +364,12 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     # every pixel will cost 4 byte in RGBA mode
     width, height = image.size
     thumbnail_image_size = width * height * 4 / 1024 / 1024
+    print(f"width: {width}, height: {height}")
     if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
         raise Exception('Image memory cost exceeds the limit')
         
     if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
         image = image.convert("RGB")
-
     image = get_rotated_image(image)
     image.thumbnail((size, size), Image.Resampling.LANCZOS)
     save_type = THUMBNAIL_EXTENSION
@@ -399,23 +402,45 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     
     file_uuid = seafile_api.get_file_uuid_by_path(repo_id, path)
     if not file_uuid:
-        return
+        raise Exception('seadoc file_uuid not found')
     
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
     access_token = gen_thumbnail_access_token(file_uuid)
     seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
-    
-    logger.info(f"seadoc_preview_url: {seadoc_preview_url}")
+
     try:
         t1 = timeit.default_timer()
-        screenshot_from_url(seadoc_preview_url, tmp_png_path, request=request, file_uuid=file_uuid, access_token=access_token)
+        get_playwright_manager().screenshot_from_url(seadoc_preview_url, tmp_png_path, request=request, access_token=access_token)
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
-
-        ret = _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+        remove_thumbnail_by_dir(file_uuid)
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
         os.unlink(tmp_png_path)
         return
     except Exception as e:
-        logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}")
+        logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}, seadoc_preview_url: {seadoc_preview_url}")
         os.unlink(tmp_png_path)
         raise e
+
+
+def remove_thumbnail_by_dir(file_uuid):
+    
+    for item in os.listdir(THUMBNAIL_ROOT):
+        size_dir = os.path.join(THUMBNAIL_ROOT, item)
+        if not os.path.isdir(size_dir):
+            continue
+        
+        target_folder = os.path.join(size_dir, file_uuid)
+        
+        if not os.path.exists(target_folder):
+            continue
+        
+        try:
+            for filename in os.listdir(target_folder):
+                file_path = os.path.join(target_folder, filename)
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+        except Exception as e:
+            pass
