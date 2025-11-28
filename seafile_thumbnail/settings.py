@@ -7,6 +7,8 @@ PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 SITE_ROOT = '/'
 INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
+SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
+
 # dir
 CONF_DIR = '/data/conf/'
 LOG_DIR = '.'
@@ -61,6 +63,7 @@ except ImportError as e:
 # ======================== settings in env ======================= #
 INNER_SEAHUB_SERVICE_URL = os.getenv('INNER_SEAHUB_SERVICE_URL') or INNER_SEAHUB_SERVICE_URL
 SITE_ROOT = os.getenv('SITE_ROOT') or SITE_ROOT
+SEAHUB_SERVICE_URL = os.getenv('SEAHUB_SERVICE_URL') or SEAHUB_SERVICE_URL #
 
 CONF_DIR = os.getenv('CONF_DIR') or CONF_DIR
 LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR

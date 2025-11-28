@@ -2,6 +2,9 @@ import os
 import hashlib
 import posixpath
 import uuid
+import jwt
+import time
+from seafile_thumbnail.settings import JWT_PRIVATE_KEY
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
 from sqlalchemy import text
@@ -151,12 +154,15 @@ def uuid_str_to_36_chars(file_uuid):
         return file_uuid
     
     
-def gen_thumbnail_file_prefix(repo_id, file_path):
-    repo_id_file_path_md5 = hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
-    return f"{repo_id_file_path_md5}"
-
-
-
+def gen_thumbnail_access_token(file_uuid):
+    access_token = jwt.encode({
+        'file_uuid': file_uuid,
+        'exp': int(time.time()) + 300,
+    },
+        JWT_PRIVATE_KEY,
+        algorithm='HS256'
+    )
+    return access_token
 
 
 class SeafileAPI(object):

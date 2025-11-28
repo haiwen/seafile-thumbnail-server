@@ -33,7 +33,6 @@ def run_server(loglevel='info'):
         level = logging.DEBUG
 
     seafile_log_to_stdout = os.getenv('SEAFILE_LOG_TO_STDOUT', 'false') == 'true'
-    formatter = '[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s'
     if seafile_log_to_stdout:
         formatter = '[thumbnail-server] [%(asctime)s] [%(levelname)s] %(name)s:%(lineno)s %(message)s'
         log_kw = {

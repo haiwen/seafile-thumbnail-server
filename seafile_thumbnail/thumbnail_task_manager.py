@@ -15,7 +15,7 @@ class ThumbnailManager(object):
         self.image_queue = queue.Queue(32)
         self.video_queue = queue.Queue(32)
 
-        self.seadoc_queue = queue.Queue(32)
+        self.seadoc_queue = queue.Queue(100)
         self.current_task_info = {}
         self.threads = []
 

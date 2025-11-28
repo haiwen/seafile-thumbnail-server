@@ -2,7 +2,6 @@ import posixpath
 import subprocess
 import logging
 import os
-import hashlib
 import shutil
 import tempfile
 import timeit
@@ -10,13 +9,13 @@ import zipfile
 from io import BytesIO
 from PIL import Image
 
-from seafile_thumbnail.screenshot import gen_thumbnail_access_token, get_playwright_manager
+from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI, \
-    gen_thumbnail_file_prefix
+    gen_thumbnail_access_token
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
-    INNER_SEAHUB_SERVICE_URL
+    SEAHUB_SERVICE_URL
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 try:
@@ -364,7 +363,6 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     # every pixel will cost 4 byte in RGBA mode
     width, height = image.size
     thumbnail_image_size = width * height * 4 / 1024 / 1024
-    print(f"width: {width}, height: {height}")
     if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
         raise Exception('Image memory cost exceeds the limit')
         
@@ -406,7 +404,7 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
     access_token = gen_thumbnail_access_token(file_uuid)
-    seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
+    seadoc_preview_url = f"{SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
 
     try:
         t1 = timeit.default_timer()
