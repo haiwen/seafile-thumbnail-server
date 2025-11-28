@@ -17,6 +17,8 @@ export SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db
 export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
 export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=${SEAFILE_MYSQL_DB_SEAHUB_DB_NAME:-seahub_db}
 export SITE_ROOT=${SITE_ROOT:-/}
+export NON_ROOT=${NON_ROOT:-false}
+export SEAFILE_LOG_TO_STDOUT=${SEAFILE_LOG_TO_STDOUT:-false}
 
 
 # log function
@@ -44,7 +46,19 @@ function monitor_seafile_thumbnail() {
     if [ $check_num -eq 0 ]; then
         log "Start $process_name"
         cd /opt/seafile/thumbnail-server/
-        /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
+        if [[ "${SEAFILE_LOG_TO_STDOUT}" == "true" ]]; then
+            if [[ "${NON_ROOT}" == "true" ]]; then
+                su seafile -c "/usr/bin/python3 main.py &"
+            else
+                /usr/bin/python3 main.py &
+            fi
+        else
+            if [[ "${NON_ROOT}" == "true" ]]; then
+                su seafile -c "/usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &"
+            else
+                /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
+            fi
+        fi
         sleep 0.2
     fi
 }

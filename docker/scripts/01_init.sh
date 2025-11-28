@@ -44,10 +44,6 @@ if [[ ! -e /shared/seafile/logs ]]; then
     mkdir /shared/seafile/logs
 fi
 
-if [[ ! -e /opt/seafile/pids ]]; then
-    mkdir /opt/seafile/pids
-fi
-
 # thumbnail-server.sh
 if [[ ! -e /opt/seafile/scripts ]]; then
     mkdir /opt/seafile/scripts
