@@ -259,4 +259,3 @@ class ThumbnailSerializer(object):
         self.thumbnail_info.update({
             'thumbnail_path': thumbnail_file
         })
-        

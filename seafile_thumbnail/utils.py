@@ -229,8 +229,7 @@ class SeafileAPI(object):
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
 
         return file_id
-    
-    
+
     def get_file_uuid_by_path(self, repo_id, file_path):
         file_name = os.path.basename(file_path)
         parent_path = os.path.dirname(file_path)
