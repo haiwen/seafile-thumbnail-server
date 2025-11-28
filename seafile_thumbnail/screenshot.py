@@ -1,6 +1,6 @@
 import jwt
 import time
-
+import logging
 from seafile_thumbnail.settings import JWT_PRIVATE_KEY
 
 import asyncio
@@ -11,6 +11,8 @@ from concurrent.futures import Future
 from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+
+logger = logging.getLogger(__name__)
 
 def gen_thumbnail_access_token(file_uuid):
     access_token = jwt.encode({
@@ -209,6 +211,7 @@ class SimplifiedPlaywrightManager:
 
         except Exception as e:
             fut.set_exception(e)
+            logger.exception(f"handle_screenshot_task error: {e}")
         finally:
             if page:
                 await page.close()
