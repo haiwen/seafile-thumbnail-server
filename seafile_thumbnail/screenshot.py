@@ -91,7 +91,6 @@ class PlaywrightManager:
         div_selector: str = "#sdoc-editor-print-wrapper",
         request=None,
         access_token: Optional[str] = None,
-        a4_mode: str = "three"  # single/three A4 height
     ) -> str:
         """Synchronous call: with timeout protection"""
         if not self._ready_event.is_set():
@@ -103,7 +102,6 @@ class PlaywrightManager:
             "div_selector": div_selector,
             "request": request,
             "access_token": access_token,
-            "a4_mode": a4_mode
         }
         fut = Future()
         try:
