@@ -1,16 +1,21 @@
+import posixpath
 import subprocess
 import logging
 import os
+import shutil
 import tempfile
 import timeit
 import zipfile
 from io import BytesIO
 from PIL import Image
 
-from seafile_thumbnail.utils import get_file_content_by_obj_id
-from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG
+from seafile_thumbnail.screenshot import get_playwright_manager
+from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI, \
+    gen_thumbnail_access_token
+from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
-    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN
+    THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
+    INNER_SEAHUB_SERVICE_URL
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 try:
@@ -89,11 +94,12 @@ def generate_thumbnail(request, thumbnail_info):
     file_id = thumbnail_info['file_id']
     thumbnail_file = thumbnail_info['thumbnail_path']
     path = thumbnail_info['file_path']
+    origin_parent_path = thumbnail_info['origin_parent_path']
    
     if origin_repo_id:
         repo_id = origin_repo_id
-
-
+        path = posixpath.join(origin_parent_path, path.lstrip('/'))
+        
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
         return (False, 400)
     if os.path.exists(thumbnail_file):
@@ -135,9 +141,19 @@ def generate_thumbnail(request, thumbnail_info):
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
+    
+    if filetype == SEADOC:
+        task_id, status = thumbnail_task_manager.add_seadoc_create_task(create_seadoc_thumbnail, request, repo_id, file_id,
+                                                                            path,
+                                                                            size, thumbnail_file, file_size)
+        if status != 200:
+            return (task_id, status)
+        return (task_id, 200)
 
     task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
                                                           thumbnail_file, size)
+    
+    
     if status != 200:
         return (task_id, status)
     return (task_id, 200)
@@ -352,7 +368,6 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
         
     if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
         image = image.convert("RGB")
-
     image = get_rotated_image(image)
     image.thumbnail((size, size), Image.Resampling.LANCZOS)
     save_type = THUMBNAIL_EXTENSION
@@ -378,3 +393,52 @@ def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE):
 
     _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
     return
+
+def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_file, file_size):
+    path = normalize_file_path(path)
+    seafile_api = SeafileAPI(repo_id)
+    
+    file_uuid = seafile_api.get_file_uuid_by_path(repo_id, path)
+    if not file_uuid:
+        raise Exception('seadoc file_uuid not found')
+    
+    tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    access_token = gen_thumbnail_access_token(file_uuid)
+    seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
+
+    try:
+        t1 = timeit.default_timer()
+        get_playwright_manager().screenshot_from_url(seadoc_preview_url, tmp_png_path, request=request, access_token=access_token)
+        t2 = timeit.default_timer()
+        logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
+        remove_thumbnail_by_dir(file_uuid)
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+        os.unlink(tmp_png_path)
+        return
+    except Exception as e:
+        logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}, seadoc_preview_url: {seadoc_preview_url}")
+        os.unlink(tmp_png_path)
+        raise e
+
+
+def remove_thumbnail_by_dir(file_uuid):
+    
+    for item in os.listdir(THUMBNAIL_ROOT):
+        size_dir = os.path.join(THUMBNAIL_ROOT, item)
+        if not os.path.isdir(size_dir):
+            continue
+        
+        target_folder = os.path.join(size_dir, file_uuid)
+        
+        if not os.path.exists(target_folder):
+            continue
+        
+        try:
+            for filename in os.listdir(target_folder):
+                file_path = os.path.join(target_folder, filename)
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+        except Exception as e:
+            pass

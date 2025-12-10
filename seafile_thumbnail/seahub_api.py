@@ -38,7 +38,7 @@ def jwt_permission_check(session_key, repo_id, path, auth_token=None):
             'Cookie': "sessionid=%s" % session_key
         }
     try:
-        response = requests.post(url, data={'path': path}, headers=headers)
+        response = requests.post(url, data={'path': path}, headers=headers, verify=False)
         if response.status_code != 200:
             error_msg = 'Internal Server Error'
             logger.error(error_msg)
@@ -67,7 +67,7 @@ def jwt_share_link_permission_check(session_key, token):
         'Cookie': "sessionid=%s" % session_key
     }
     try:
-        response = requests.post(jwt_url, data={'token': token}, headers=headers)
+        response = requests.post(jwt_url, data={'token': token}, headers=headers, verify=False)
         if response.status_code != 200:
             error_msg = 'Internal Server Error'
             logger.error(error_msg)

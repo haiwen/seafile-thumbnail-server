@@ -1,5 +1,10 @@
 import os
+import hashlib
 import posixpath
+import uuid
+import jwt
+import time
+from seafile_thumbnail.settings import JWT_PRIVATE_KEY
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
 from sqlalchemy import text
@@ -142,15 +147,34 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     return b_content
 
 
+def uuid_str_to_36_chars(file_uuid):
+    if len(file_uuid) == 32:
+        return str(uuid.UUID(file_uuid))
+    else:
+        return file_uuid
+    
+    
+def gen_thumbnail_access_token(file_uuid):
+    access_token = jwt.encode({
+        'file_uuid': file_uuid,
+        'exp': int(time.time()) + 300,
+    },
+        JWT_PRIVATE_KEY,
+        algorithm='HS256'
+    )
+    return access_token
+
+
 class SeafileAPI(object):
     def __init__(self, repo_id):
         self.repo_id = repo_id
         self.db_session_class = init_db_session_class('seafile')
+        self.seahub_db_session_class = init_db_session_class()
 
     def get_repo_info(self):
         with self.db_session_class() as session:
             sql = text("""
-                SELECT v.origin_repo as origin_repo_id, i.is_encrypted
+                SELECT v.origin_repo as origin_repo_id, i.is_encrypted, v.path as path
                 FROM Repo r 
                 LEFT JOIN VirtualRepo v ON r.repo_id = v.repo_id
                 LEFT JOIN RepoInfo i on r.repo_id = i.repo_id
@@ -164,6 +188,7 @@ class SeafileAPI(object):
                 'repo_id': self.repo_id,
                 'origin_repo_id': result.origin_repo_id,
                 'is_encrypted': result.is_encrypted,
+                'path': result.path
             }
             return repo
 
@@ -204,3 +229,25 @@ class SeafileAPI(object):
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
 
         return file_id
+
+    def get_file_uuid_by_path(self, repo_id, file_path):
+        file_name = os.path.basename(file_path)
+        parent_path = os.path.dirname(file_path)
+        parent_path = parent_path.rstrip('/') if parent_path != '/' else '/'
+        md5_repo_id_parent_path = hashlib.md5((repo_id + parent_path).encode('utf-8')).hexdigest()
+        with self.seahub_db_session_class() as seahub_db_session:
+            sql = text("""
+            SELECT uuid FROM tags_fileuuidmap
+            WHERE repo_id_parent_path_md5=:repo_id_parent_path_md5
+            AND filename=:filename
+            """)
+
+            result = seahub_db_session.execute(sql, {
+                "repo_id_parent_path_md5": md5_repo_id_parent_path,
+                "filename": file_name
+            }).first()
+            if not result:
+                return None
+            
+            uuid = uuid_str_to_36_chars(result.uuid)
+            return uuid
