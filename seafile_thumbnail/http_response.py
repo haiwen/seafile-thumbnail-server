@@ -13,7 +13,7 @@ from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 logger = logging.getLogger(__name__)
 
-TIME_OUT = 60
+TIMEOUT = 60
 
 
 def gen_response_start(status, content_type):
@@ -99,7 +99,7 @@ async def gen_thumbnail_response(request, thumbnail_info):
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
                 break
-            if time.time() - start_time > TIME_OUT:
+            if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
 
@@ -129,7 +129,7 @@ async def thumbnail_get(request, thumbnail_info):
                     if error_msg:
                         return gen_error_response(415, error_msg)
                     break
-                if time.time() - start_time > TIME_OUT:
+                if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
                 time.sleep(0.2)
     try:
@@ -178,7 +178,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
                 break
-            if time.time() - start_time > TIME_OUT:
+            if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
             time.sleep(0.2)
     return generate_json_response(result, status, content_type)
@@ -208,7 +208,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
                     if error_msg:
                         return gen_error_response(415, error_msg)
                     break
-                if time.time() - start_time > TIME_OUT:
+                if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
                 time.sleep(0.2)
     try:
