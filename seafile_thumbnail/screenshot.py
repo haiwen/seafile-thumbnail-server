@@ -164,7 +164,8 @@ class PlaywrightManager:
         """Create context adapted for A4 size"""
         return await self._browser.new_context(
             viewport={"width": 1920, "height": 3000},  # Height for 3 A4 pages
-            device_scale_factor=1
+            device_scale_factor=1,
+            ignore_https_errors=True
         )
     
     @asynccontextmanager

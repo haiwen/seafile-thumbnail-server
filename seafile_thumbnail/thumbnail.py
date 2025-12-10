@@ -15,7 +15,7 @@ from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_p
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
-    SEAHUB_SERVICE_URL
+    INNER_SEAHUB_SERVICE_URL
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 try:
@@ -404,7 +404,7 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
     access_token = gen_thumbnail_access_token(file_uuid)
-    seadoc_preview_url = f"{SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
+    seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
 
     try:
         t1 = timeit.default_timer()

@@ -13,7 +13,7 @@ from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 logger = logging.getLogger(__name__)
 
-TIME_OUT = 30
+TIME_OUT = 60
 
 
 def gen_response_start(status, content_type):
