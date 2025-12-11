@@ -351,7 +351,7 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         raise e
         
 
-def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False):
+def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False, path=None):
     """Common logic for creating image thumbnail.
 
     `fp` can be a filename (string) or a file object.
@@ -378,10 +378,12 @@ def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False):
     if image.mode in ['RGBA', 'P']:
         save_type = 'png'
     image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
-    image2 = Image.open(thumbnail_file)
-    width2, height2 = image2.size
     
-    logger.debug(f"screenshot size: w:{width}, h:{height}  thumbnail_size:w:{width2}, h:{height2}")
+    # future remove
+    if fix_width:
+        image2 = Image.open(thumbnail_file)
+        width2, height2 = image2.size
+        logger.debug(f"sdoc screenshot size: w:{width}, h:{height}  sdoc thumbnail_size:w:{width2}, h:{height2}, path:{path}")
     return
 
 
@@ -420,7 +422,7 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
         remove_thumbnail_by_dir(file_uuid)
-        _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True)
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True, path=path)
         os.unlink(tmp_png_path)
         return
     except Exception as e:
