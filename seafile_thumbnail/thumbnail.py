@@ -381,7 +381,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False):
     image2 = Image.open(thumbnail_file)
     width2, height2 = image2.size
     
-    logger.debug(f"screenshot size: w:{width}, h:{height} \n thumbnail_size:w:{width2}, h:{height2}")
+    logger.debug(f"screenshot size: w:{width}, h:{height}  thumbnail_size:w:{width2}, h:{height2}")
     return
 
 
