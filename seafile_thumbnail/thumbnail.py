@@ -351,7 +351,7 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         raise e
         
 
-def _create_thumbnail_common(fp, thumbnail_file, size):
+def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False):
     """Common logic for creating image thumbnail.
 
     `fp` can be a filename (string) or a file object.
@@ -362,6 +362,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
     # every pixel will cost 4 byte in RGBA mode
     width, height = image.size
+    
     thumbnail_image_size = width * height * 4 / 1024 / 1024
     if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
         raise Exception('Image memory cost exceeds the limit')
@@ -369,11 +370,18 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
         image = image.convert("RGB")
     image = get_rotated_image(image)
-    image.thumbnail((size, size), Image.Resampling.LANCZOS)
+    if fix_width:
+        image.thumbnail((size, 100000), Image.Resampling.LANCZOS)
+    else:
+        image.thumbnail((size, size), Image.Resampling.LANCZOS)
     save_type = THUMBNAIL_EXTENSION
     if image.mode in ['RGBA', 'P']:
         save_type = 'png'
     image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
+    image2 = Image.open(thumbnail_file)
+    width2, height2 = image2.size
+    
+    logger.debug(f"screenshot size: w:{width}, h:{height} \n thumbnail_size:w:{width2}, h:{height2}")
     return
 
 
@@ -400,7 +408,7 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     
     file_uuid = seafile_api.get_file_uuid_by_path(repo_id, path)
     if not file_uuid:
-        raise Exception('seadoc file_uuid not found')
+        raise Exception(f'seadoc file_uuid not found: repo_id: {repo_id}, path:{path}')
     
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
     access_token = gen_thumbnail_access_token(file_uuid)
@@ -412,7 +420,7 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
         remove_thumbnail_by_dir(file_uuid)
-        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True)
         os.unlink(tmp_png_path)
         return
     except Exception as e:

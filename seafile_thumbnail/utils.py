@@ -157,7 +157,7 @@ def uuid_str_to_36_chars(file_uuid):
 def gen_thumbnail_access_token(file_uuid):
     access_token = jwt.encode({
         'file_uuid': file_uuid,
-        'exp': int(time.time()) + 300,
+        'exp': int(time.time()) + 30000,
     },
         JWT_PRIVATE_KEY,
         algorithm='HS256'
