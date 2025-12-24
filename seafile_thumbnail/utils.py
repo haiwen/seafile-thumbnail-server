@@ -18,7 +18,7 @@ PREVIEW_FILEEXT = {
     SVG: ('svg',),
     PDF: ('pdf', 'ai'),
     MARKDOWN: ('markdown', 'md'),
-    VIDEO: ('mp4', 'ogv', 'webm', 'mov'),
+    VIDEO: ('mp4', 'ogv', 'webm', 'mov', 'm4v'),
     AUDIO: ('mp3', 'oga', 'ogg', 'wav', 'flac', 'opus'),
     XMIND: ('xmind',),
     SEADOC: ('sdoc',),
