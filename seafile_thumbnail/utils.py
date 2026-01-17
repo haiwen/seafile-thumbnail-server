@@ -132,14 +132,21 @@ def normalize_share_cache_key(token, sessionid):
 def get_file_content_by_obj_id(repo_id, obj_id):
     if obj_id == ZERO_OBJ_ID:
         return b''
+    f = None
     try:
         f = fs_mgr.load_seafile(repo_id, 1, obj_id)
         b_content = f.get_content()
         if not b_content.strip():
             return b''
+        return b_content
     except Exception as e:
         raise Exception('Failed to get file content by obj id: %s' % e)
-    return b_content
+    finally:
+        # MEMORY FIX: Clear SeaFile object's cached content to prevent memory leak
+        # The _content field caches the entire file content and is never released
+        if f is not None:
+            f._content = None
+            f.blocks = None
 
 
 class SeafileAPI(object):
