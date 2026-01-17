@@ -43,7 +43,7 @@ SESSION_KEY = 'sessionid'
 
 JWT_PRIVATE_KEY = ""
 # thread count
-TASK_WORKERS = 3
+TASK_WORKERS = 4
 
 
 # ======================== local settings ======================== #
@@ -68,6 +68,7 @@ LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR
 THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
 JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
 THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT = int(os.environ.get('THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT', 256))
+TASK_WORKERS = int(os.environ.get('THUMBNAIL_TASK_WORKERS', TASK_WORKERS))
 
 # config for mysql
 MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db')
