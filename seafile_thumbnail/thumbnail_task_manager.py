@@ -6,11 +6,15 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
+# Results older than this will be cleaned up (seconds)
+RESULT_EXPIRE_TIME = 120
+
 
 class ThumbnailManager(object):
 
     def __init__(self):
         self.tasks_map = {}
+        # Store results with timestamp: {task_id: (result, timestamp)}
         self.task_results_map = {}
         self.image_queue = queue.Queue(32)
         self.video_queue = queue.Queue(32)
@@ -18,6 +22,7 @@ class ThumbnailManager(object):
         self.seadoc_queue = queue.Queue(100)
         self.current_task_info = {}
         self.threads = []
+        self._results_lock = threading.Lock()
 
     def is_valid_task_id(self, task_id):
         return task_id in (self.tasks_map.keys() | self.task_results_map.keys())
@@ -88,12 +93,38 @@ class ThumbnailManager(object):
         self.tasks_map[task_id] = task
         return task_id, 200
 
+    def _set_result(self, task_id, result):
+        """Store result with timestamp"""
+        with self._results_lock:
+            self.task_results_map[task_id] = (result, time.time())
+
+    def _get_and_remove_result(self, task_id):
+        """Get and remove result, returns None if not found"""
+        with self._results_lock:
+            item = self.task_results_map.pop(task_id, None)
+            if item:
+                return item[0]  # Return only the result, not timestamp
+            return None
+
+    def _cleanup_expired_results(self):
+        """Remove results older than RESULT_EXPIRE_TIME"""
+        now = time.time()
+        expired_keys = []
+        with self._results_lock:
+            for task_id, (result, timestamp) in self.task_results_map.items():
+                if now - timestamp > RESULT_EXPIRE_TIME:
+                    expired_keys.append(task_id)
+            for key in expired_keys:
+                del self.task_results_map[key]
+        if expired_keys:
+            logger.info(f'Cleaned up {len(expired_keys)} expired task results')
+
     def query_status(self, task_id):
         if not self.is_valid_task_id(task_id):
             error = 'task id: %s invalid'% task_id
             logger.warning(error)
             return True, error
-        task_result = self.task_results_map.pop(task_id, None)
+        task_result = self._get_and_remove_result(task_id)
         if task_result == 'success':
             return True, None
         if isinstance(task_result, str) and task_result.startswith('error_'):
@@ -106,6 +137,9 @@ class ThumbnailManager(object):
         logger.info("thread monitor started")
         while True:
             try:
+                # Cleanup expired task results to prevent memory leak
+                self._cleanup_expired_results()
+                
                 # check the thread status
                 dead_threads = []
                 for i, thread in enumerate(self.threads):
@@ -166,7 +200,7 @@ class ThumbnailManager(object):
                 start_time = time.time()
                 # run
                 task[0](*task[1])
-                self.task_results_map[image_id] = 'success'
+                self._set_result(image_id, 'success')
 
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
@@ -174,9 +208,9 @@ class ThumbnailManager(object):
             except Exception as e:
                 # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
                 if len(e.args) > 0:
-                    self.task_results_map[image_id] = 'error_' + str(e.args[0])
+                    self._set_result(image_id, 'error_' + str(e.args[0]))
                 else:
-                    self.task_results_map[image_id] = 'error_' + str(e)
+                    self._set_result(image_id, 'error_' + str(e))
                 logger.exception('Failed to handle task %s, error: %s \n' % (task_info, e))
                 
                 self.current_task_info.pop(image_id, None)
@@ -204,16 +238,16 @@ class ThumbnailManager(object):
                 start_time = time.time()
                 # run
                 task[0](*task[1])
-                self.task_results_map[video_id] = 'success'
+                self._set_result(video_id, 'success')
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(video_id, None)
             except Exception as e:
                 # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
                 if len(e.args) > 0:
-                    self.task_results_map[video_id] = 'error_' + str(e.args[0])
+                    self._set_result(video_id, 'error_' + str(e.args[0]))
                 else:
-                    self.task_results_map[video_id] = 'error_' + str(e)
+                    self._set_result(video_id, 'error_' + str(e))
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(video_id, None)
             finally:
@@ -240,16 +274,16 @@ class ThumbnailManager(object):
                 start_time = time.time()
                 # run
                 task[0](*task[1])
-                self.task_results_map[seadoc_id] = 'success'
+                self._set_result(seadoc_id, 'success')
                 finish_time = time.time()
                 logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
                 self.current_task_info.pop(seadoc_id, None)
             except Exception as e:
                 # Some errors in seabobj are not properly thrown, resulting in index exceeding errors here
                 if len(e.args) > 0:
-                    self.task_results_map[seadoc_id] = 'error_' + str(e.args[0])
+                    self._set_result(seadoc_id, 'error_' + str(e.args[0]))
                 else:
-                    self.task_results_map[seadoc_id] = 'error_' + str(e)
+                    self._set_result(seadoc_id, 'error_' + str(e))
                 logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(seadoc_id, None)
             finally:
