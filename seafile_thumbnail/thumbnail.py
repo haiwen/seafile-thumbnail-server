@@ -1,3 +1,4 @@
+import gc
 import subprocess
 import logging
 import os
@@ -144,12 +145,21 @@ def generate_thumbnail(request, thumbnail_info):
 
 
 def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
-    # image thumbnail
-    image_file = get_file_content_by_obj_id(repo_id, file_id)
-    if image_file == b'':
-        raise Exception('Image file is empty')
-    f = BytesIO(image_file)
-    _create_thumbnail_common(f, thumbnail_file, size)
+    # image thumbnail - MEMORY FIX: explicit cleanup
+    image_file = None
+    f = None
+    try:
+        image_file = get_file_content_by_obj_id(repo_id, file_id)
+        if image_file == b'':
+            raise Exception('Image file is empty')
+        f = BytesIO(image_file)
+        _create_thumbnail_common(f, thumbnail_file, size)
+    finally:
+        if f is not None:
+            f.close()
+        if image_file is not None:
+            del image_file
+        gc.collect()
     return
 
 
@@ -162,25 +172,38 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return
 
     tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
-    t1 = timeit.default_timer()
-    tmp_file = get_file_content_by_obj_id(repo_id, file_id)
-    f = BytesIO(tmp_file)
-    psd = PSDImage.open(f)
-
-    merged_image = psd.topil()
-    merged_image.save(tmp_img_path)
-
-    t2 = timeit.default_timer()
-    logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-
+    tmp_file = None
+    f = None
+    psd = None
+    merged_image = None
+    
     try:
+        t1 = timeit.default_timer()
+        tmp_file = get_file_content_by_obj_id(repo_id, file_id)
+        f = BytesIO(tmp_file)
+        psd = PSDImage.open(f)
+        merged_image = psd.topil()
+        merged_image.save(tmp_img_path)
+        t2 = timeit.default_timer()
+        logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+
         _create_thumbnail_common(tmp_img_path, thumbnail_file, size)
-        os.unlink(tmp_img_path)
-        return
     except Exception as e:
         logger.warning(e)
-        os.path.exists(tmp_img_path) and os.unlink(tmp_img_path)
-        return
+    finally:
+        # MEMORY FIX: cleanup all objects
+        if merged_image is not None:
+            merged_image.close()
+        if psd is not None:
+            psd.close()
+        if f is not None:
+            f.close()
+        if tmp_file is not None:
+            del tmp_file
+        if os.path.exists(tmp_img_path):
+            os.unlink(tmp_img_path)
+        gc.collect()
+    return
 
 
 def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
@@ -246,33 +269,52 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
     tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    image_file = None
     
     try:
         image_file = get_file_content_by_obj_id(repo_id, file_id)
         pdf_bytes_to_images(image_file, tmp_path)
+        # MEMORY FIX: delete image_file immediately after use
+        del image_file
+        image_file = None
+        gc.collect()
+        
         tmp_path = tmp_path + '.png'
         t2 = timeit.default_timer()
         logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
         _create_thumbnail_common(tmp_path, thumbnail_file, size)
-        os.unlink(tmp_path)
-        return
     except Exception as e:
         logger.warning(f'Error creating PDF thumbnail: {e}')
+        raise
+    finally:
+        if image_file is not None:
+            del image_file
         if os.path.exists(tmp_path + '.png'):
             os.unlink(tmp_path + '.png')
-        raise
+        elif os.path.exists(tmp_path):
+            pass  # tmp_path without .png doesn't exist as file
+        gc.collect()
+    return
 
 
 def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
-    tmp_image_path = os.path.join(
-        tempfile.gettempdir(), file_id + '.png')
+    tmp_image_path = os.path.join(tempfile.gettempdir(), file_id + '.png')
+    tmp_video_path = None
+    tmp_video = None
+    
     try:
         tmp_video = get_file_content_by_obj_id(repo_id, file_id)
         if tmp_video == b'':
             raise Exception('Video file is empty')
+        
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmpfile:
             tmpfile.write(tmp_video)
+            # MEMORY FIX: delete video content immediately after writing to temp file
+            del tmp_video
+            tmp_video = None
+            gc.collect()
+            
             tmpfile.seek(0)
             tmp_video_path = tmpfile.name
         
@@ -289,17 +331,21 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
         
         if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
             _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
-            os.unlink(tmp_image_path)
-            os.remove(tmp_video_path)
             return True
         else:
             raise Exception("Failed to generate video thumbnail")
             
     except Exception as e:
-        if os.path.exists(tmp_image_path):
-            os.unlink(tmp_image_path)
-            os.remove(tmp_video_path)
         raise e
+    finally:
+        # MEMORY FIX: cleanup in finally block
+        if tmp_video is not None:
+            del tmp_video
+        if tmp_image_path and os.path.exists(tmp_image_path):
+            os.unlink(tmp_image_path)
+        if tmp_video_path and os.path.exists(tmp_video_path):
+            os.remove(tmp_video_path)
+        gc.collect()
     
 
 def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -310,9 +356,11 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
                      "Please install by 'pip install cairosvg' (requires system cairo library)")
         raise Exception("Missing dependency: cairosvg")
     
-    svg_content = get_file_content_by_obj_id(repo_id, file_id)
+    svg_content = None
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    
     try:
+        svg_content = get_file_content_by_obj_id(repo_id, file_id)
         t1 = timeit.default_timer()
         cairosvg.svg2png(
             bytestring=svg_content,
@@ -321,18 +369,25 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             output_width=size,
             output_height=size
         )
+        # MEMORY FIX: delete svg_content after conversion
+        del svg_content
+        svg_content = None
         
         t2 = timeit.default_timer()
         logger.debug(f"Convert SVG [{path}] to PNG takes: {t2 - t1:.2f}s (size: {file_size} bytes)")
         
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
-        os.unlink(tmp_png_path)
-        return
     except Exception as e:
         logger.exception(e)
         logger.error(f"Failed to generate SVG thumbnail for [{path}]: {str(e)}")
-        os.unlink(tmp_png_path)
         raise e
+    finally:
+        if svg_content is not None:
+            del svg_content
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+        gc.collect()
+    return
         
 
 def _create_thumbnail_common(fp, thumbnail_file, size):
@@ -342,39 +397,64 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     """
     image = Image.open(fp)
 
-    # check image memory cost size limit
-    # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
-    # every pixel will cost 4 byte in RGBA mode
-    width, height = image.size
-    thumbnail_image_size = width * height * 4 / 1024 / 1024
-    if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
-        raise Exception('Image memory cost exceeds the limit')
-        
-    if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
-        image = image.convert("RGB")
+    try:
+        # check image memory cost size limit
+        # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
+        # every pixel will cost 4 byte in RGBA mode
+        width, height = image.size
+        thumbnail_image_size = width * height * 4 / 1024 / 1024
+        if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
+            raise Exception('Image memory cost exceeds the limit')
+            
+        if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
+            image = image.convert("RGB")
 
-    image = get_rotated_image(image)
-    image.thumbnail((size, size), Image.Resampling.LANCZOS)
-    save_type = THUMBNAIL_EXTENSION
-    if image.mode in ['RGBA', 'P']:
-        save_type = 'png'
-    image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
+        image = get_rotated_image(image)
+        image.thumbnail((size, size), Image.Resampling.LANCZOS)
+        save_type = THUMBNAIL_EXTENSION
+        if image.mode in ['RGBA', 'P']:
+            save_type = 'png'
+        image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
+    finally:
+        # MEMORY FIX: always close image
+        image.close()
     return
 
 
 def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE):
-    xmind_file = get_file_content_by_obj_id(repo_id, file_id)
-    xmind_file_str = BytesIO(xmind_file)
+    xmind_file = None
+    xmind_file_str = None
+    xmind_zip_file = None
+    extracted_xmind_image_str = None
     
-    xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
-    extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
-    extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+    try:
+        xmind_file = get_file_content_by_obj_id(repo_id, file_id)
+        xmind_file_str = BytesIO(xmind_file)
+        # MEMORY FIX: delete original content after creating BytesIO
+        del xmind_file
+        xmind_file = None
+        
+        xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
+        extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
+        extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+        del extracted_xmind_image
 
-    # save origin xmind image to thumbnail folder
-    thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
-    if not os.path.exists(thumbnail_dir):
-        os.makedirs(thumbnail_dir)
-    local_xmind_image = os.path.join(thumbnail_dir, file_id)
+        # save origin xmind image to thumbnail folder
+        thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
+        if not os.path.exists(thumbnail_dir):
+            os.makedirs(thumbnail_dir)
+        local_xmind_image = os.path.join(thumbnail_dir, file_id)
 
-    _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+        _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+    finally:
+        # MEMORY FIX: cleanup all objects
+        if extracted_xmind_image_str is not None:
+            extracted_xmind_image_str.close()
+        if xmind_zip_file is not None:
+            xmind_zip_file.close()
+        if xmind_file_str is not None:
+            xmind_file_str.close()
+        if xmind_file is not None:
+            del xmind_file
+        gc.collect()
     return
