@@ -3,8 +3,12 @@ import threading
 import logging
 import time
 import uuid
+import os
 
 logger = logging.getLogger(__name__)
+
+# Memory limit in MB, exit for restart if exceeded (default 4GB)
+MEMORY_LIMIT_MB = int(os.environ.get('THUMBNAIL_MEMORY_LIMIT', 4096))
 
 
 class ThumbnailManager(object):
@@ -87,11 +91,28 @@ class ThumbnailManager(object):
         return False, None
     
 
+    def _check_memory_and_exit(self):
+        """Check memory usage, exit for restart if exceeded limit"""
+        try:
+            with open('/proc/self/statm', 'r') as f:
+                # statm: size resident shared text lib data dt (in pages)
+                # resident (RSS) is the second field
+                rss_pages = int(f.read().split()[1])
+                rss_mb = rss_pages * 4096 / 1024 / 1024
+                if rss_mb > MEMORY_LIMIT_MB:
+                    logger.warning(f'Memory usage {rss_mb:.0f}MB exceeds limit {MEMORY_LIMIT_MB}MB, exiting for restart')
+                    os._exit(1)
+        except Exception as e:
+            logger.error(f'Failed to check memory: {e}')
+
     def check_and_restart_threads(self):
         """monitor the thread status and restart the dead threads"""
         logger.info("thread monitor started")
         while True:
             try:
+                # Check memory usage and exit if exceeded limit
+                self._check_memory_and_exit()
+                
                 # check the thread status
                 dead_threads = []
                 for i, thread in enumerate(self.threads):
