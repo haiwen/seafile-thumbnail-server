@@ -245,23 +245,22 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
     t1 = timeit.default_timer()
-    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_prefix = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_png_path = tmp_prefix + '.png'
     
     try:
         image_file = get_file_content_by_obj_id(repo_id, file_id)
-        pdf_bytes_to_images(image_file, tmp_path)
-        tmp_path = tmp_path + '.png'
+        pdf_bytes_to_images(image_file, tmp_prefix)
         t2 = timeit.default_timer()
         logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
-        _create_thumbnail_common(tmp_path, thumbnail_file, size)
-        os.unlink(tmp_path)
-        return
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
     except Exception as e:
         logger.warning(f'Error creating PDF thumbnail: {e}')
-        if os.path.exists(tmp_path + '.png'):
-            os.unlink(tmp_path + '.png')
         raise
+    finally:
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
 
 
 def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
