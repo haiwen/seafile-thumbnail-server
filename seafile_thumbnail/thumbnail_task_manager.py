@@ -13,6 +13,7 @@ class ThumbnailManager(object):
         self.tasks_map = {}
         self.task_results_map = {}
         self.image_queue = queue.Queue(32)
+        self.pdf_queue = queue.Queue(32)  # Separate queue for slow tasks (PDF, PSD)
         self.video_queue = queue.Queue(32)
         self.current_task_info = {}
         self.threads = []
@@ -38,7 +39,8 @@ class ThumbnailManager(object):
         self.tasks_map[task_id] = task
         return task_id, 200
 
-    def add_pdf_or_psd_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
+    def add_svg_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
+        # SVG conversion is fast, use image_queue
         if self.image_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
@@ -47,6 +49,19 @@ class ThumbnailManager(object):
         task_id = str(uuid.uuid4())
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.image_queue.put(task_id)
+        self.tasks_map[task_id] = task
+        return task_id, 200
+
+    def add_pdf_or_psd_create_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size):
+        # Use pdf_queue for slow tasks (PDF, PSD) to avoid blocking fast image tasks
+        if self.pdf_queue.full():
+            logger.warning('pdf thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
+                            % (self.pdf_queue.qsize(), self.current_task_info,
+                            self.threads_is_alive()))
+            return ('thumbnail server busy.', 503)
+        task_id = str(uuid.uuid4())
+        task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
+        self.pdf_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
 
@@ -106,6 +121,11 @@ class ThumbnailManager(object):
                             target=self.handle_image_task, 
                             name=thread.name
                         )
+                    elif thread.name.startswith('PdfManager'):
+                        new_thread = threading.Thread(
+                            target=self.handle_pdf_task,
+                            name=thread.name
+                        )
                     else:  # VideoManager
                         new_thread = threading.Thread(
                             target=self.handle_video_task, 
@@ -163,6 +183,42 @@ class ThumbnailManager(object):
             finally:
                 self.tasks_map.pop(image_id, None)
 
+    def handle_pdf_task(self):
+        """Handle slow tasks: PDF, PSD"""
+        while True:
+            try:
+                pdf_id = self.pdf_queue.get(timeout=2)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(e)
+                continue
+            task = self.tasks_map.get(pdf_id)
+            if type(task) != tuple or len(task) < 1:
+                continue
+            task_info = pdf_id + ' ' + str(task[0])
+            try:
+                self.current_task_info[pdf_id] = task_info
+                logging.info('Run task: %s' % task_info)
+                logging.debug('Thread name: %s, threads is_alive: %s pdf_queue: %s pdf_queue size: %d'
+                            % (threading.current_thread().name, self.threads_is_alive(), self.pdf_queue.queue, self.pdf_queue.qsize()))
+                start_time = time.time()
+                # run
+                task[0](*task[1])
+                self.task_results_map[pdf_id] = 'success'
+                finish_time = time.time()
+                logging.info('Run task success: %s cost %ds \n' % (task_info, int(finish_time - start_time)))
+                self.current_task_info.pop(pdf_id, None)
+            except Exception as e:
+                if len(e.args) > 0:
+                    self.task_results_map[pdf_id] = 'error_' + str(e.args[0])
+                else:
+                    self.task_results_map[pdf_id] = 'error_' + str(e)
+                logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                self.current_task_info.pop(pdf_id, None)
+            finally:
+                self.tasks_map.pop(pdf_id, None)
+
     def handle_video_task(self):
         while True:
             try:
@@ -201,15 +257,20 @@ class ThumbnailManager(object):
 
     def run(self, task_workers=3):
         image_name = 'ImageManager Thread-'
+        pdf_name = 'PdfManager Thread-'
         video_name = 'VideoManager Thread-'
         for thread_num in range(task_workers):
             image_t = threading.Thread(target=self.handle_image_task, name=image_name+str(thread_num))
+            pdf_t = threading.Thread(target=self.handle_pdf_task, name=pdf_name+str(thread_num))
             video_t = threading.Thread(target=self.handle_video_task, name=video_name+str(thread_num))
             image_t.setDaemon(True)
+            pdf_t.setDaemon(True)
             video_t.setDaemon(True)
             image_t.start()
+            pdf_t.start()
             video_t.start()
             self.threads.append(image_t)
+            self.threads.append(pdf_t)
             self.threads.append(video_t)
 
         # start the thread monitor

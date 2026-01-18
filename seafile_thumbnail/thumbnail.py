@@ -130,8 +130,8 @@ def generate_thumbnail(request, thumbnail_info):
         return (task_id, 200)
     
     if filetype == SVG:
-        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_svg_thumbnails, repo_id, file_id, path,
-                                                                            size, thumbnail_file, file_size)
+        task_id, status = thumbnail_task_manager.add_svg_create_task(create_svg_thumbnails, repo_id, file_id, path,
+                                                                     size, thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
