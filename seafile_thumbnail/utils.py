@@ -142,6 +142,44 @@ def get_file_content_by_obj_id(repo_id, obj_id):
     return b_content
 
 
+def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
+    """Stream file content to a destination path without loading entire file into memory.
+    
+    This function reads the file in chunks and writes directly to disk, which is
+    memory-efficient for large files like videos.
+    
+    Args:
+        repo_id: Repository ID
+        obj_id: File object ID  
+        dest_path: Destination file path to write to
+        chunk_size: Size of chunks to read at a time (default 8MB)
+    
+    Returns:
+        Total bytes written
+    """
+    if obj_id == ZERO_OBJ_ID:
+        raise Exception('Cannot stream empty file')
+    
+    total_written = 0
+    try:
+        f = fs_mgr.load_seafile(repo_id, 1, obj_id)
+        stream = f.get_stream()
+        
+        with open(dest_path, 'wb') as dest_file:
+            while True:
+                chunk = stream.read(chunk_size)
+                if not chunk:
+                    break
+                dest_file.write(chunk)
+                total_written += len(chunk)
+        
+        return total_written
+    except Exception as e:
+        if os.path.exists(dest_path):
+            os.unlink(dest_path)
+        raise Exception('Failed to stream file content: %s' % e)
+
+
 class SeafileAPI(object):
     def __init__(self, repo_id):
         self.repo_id = repo_id

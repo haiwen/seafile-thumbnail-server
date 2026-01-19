@@ -7,7 +7,7 @@ import zipfile
 from io import BytesIO
 from PIL import Image
 
-from seafile_thumbnail.utils import get_file_content_by_obj_id
+from seafile_thumbnail.utils import get_file_content_by_obj_id, stream_file_to_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN
@@ -102,7 +102,7 @@ def generate_thumbnail(request, thumbnail_info):
     if filetype == VIDEO:
         # video thumbnails
         task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, size,
-                                                        thumbnail_file)
+                                                        thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
@@ -114,7 +114,7 @@ def generate_thumbnail(request, thumbnail_info):
                 return (task_id, status)
         return (task_id, 200)
     if filetype == XMIND:
-        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, size)
+        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, size, file_size)
         if status != 200:
                 return (task_id, status)
         return (task_id, 200)
@@ -183,12 +183,31 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return
 
 
-def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
-    with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmpfile:
-        tmpfile.write(pdf_bytes)
+def pdf_to_images(pdf_input, prefix_path, dpi=150, file_size=0):
+    """Convert PDF to images.
+    
+    Args:
+        pdf_input: Either bytes content or file path (str)
+        prefix_path: Output path prefix
+        dpi: Resolution
+        file_size: File size in bytes (used for large file detection when input is file path)
+    """
+    # Determine if input is bytes or file path
+    if isinstance(pdf_input, bytes):
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmpfile.write(pdf_input)
+        tmpfile.close()
         tmp_file = tmpfile.name
-        
-        if len(pdf_bytes) > LARGE_PDF_SIZE_THRESHOLD:
+        cleanup_tmp = True
+        check_size = len(pdf_input)
+    else:
+        # pdf_input is a file path
+        tmp_file = pdf_input
+        cleanup_tmp = False
+        check_size = file_size
+    
+    try:
+        if check_size > LARGE_PDF_SIZE_THRESHOLD:
             pdf_info_command = [
                 'pdfinfo',
                 '-f', '1',
@@ -241,40 +260,72 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
         except subprocess.CalledProcessError as e:
             logger.error(f'pdftoppm failed: {e}')
             raise
+    finally:
+        if cleanup_tmp and os.path.exists(tmp_file):
+            os.unlink(tmp_file)
 
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
+    """Create PDF thumbnail.
+    
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
     t1 = timeit.default_timer()
-    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_prefix = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_png_path = tmp_prefix + '.png'
+    tmp_pdf_path = os.path.join(tempfile.gettempdir(), file_id + '.pdf')
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
     
     try:
-        image_file = get_file_content_by_obj_id(repo_id, file_id)
-        pdf_bytes_to_images(image_file, tmp_path)
-        tmp_path = tmp_path + '.png'
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to write to temp file, then pass file path
+            stream_file_to_path(repo_id, file_id, tmp_pdf_path)
+            pdf_to_images(tmp_pdf_path, tmp_prefix, file_size=file_size)
+        else:
+            # Small file: load into memory directly
+            pdf_content = get_file_content_by_obj_id(repo_id, file_id)
+            pdf_to_images(pdf_content, tmp_prefix)
+            del pdf_content
+        
         t2 = timeit.default_timer()
         logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
-        _create_thumbnail_common(tmp_path, thumbnail_file, size)
-        os.unlink(tmp_path)
-        return
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
     except Exception as e:
         logger.warning(f'Error creating PDF thumbnail: {e}')
-        if os.path.exists(tmp_path + '.png'):
-            os.unlink(tmp_path + '.png')
         raise
+    finally:
+        if os.path.exists(tmp_pdf_path):
+            os.unlink(tmp_pdf_path)
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
 
 
-def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
-    tmp_image_path = os.path.join(
-        tempfile.gettempdir(), file_id + '.png')
+def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0):
+    """Create video thumbnail.
+    
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
+    tmp_image_path = os.path.join(tempfile.gettempdir(), file_id + '.png')
+    tmp_video_path = os.path.join(tempfile.gettempdir(), file_id + '.mp4')
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
+    
     try:
-        tmp_video = get_file_content_by_obj_id(repo_id, file_id)
-        if tmp_video == b'':
-            raise Exception('Video file is empty')
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmpfile:
-            tmpfile.write(tmp_video)
-            tmpfile.seek(0)
-            tmp_video_path = tmpfile.name
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to avoid memory issues
+            bytes_written = stream_file_to_path(repo_id, file_id, tmp_video_path)
+            if bytes_written == 0:
+                raise Exception('Video file is empty')
+        else:
+            # Small file: load into memory for better performance
+            video_content = get_file_content_by_obj_id(repo_id, file_id)
+            if not video_content:
+                raise Exception('Video file is empty')
+            with open(tmp_video_path, 'wb') as f:
+                f.write(video_content)
+            del video_content
         
         # get video duration
         duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
@@ -289,17 +340,17 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
         
         if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
             _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
-            os.unlink(tmp_image_path)
-            os.remove(tmp_video_path)
             return True
         else:
             raise Exception("Failed to generate video thumbnail")
             
     except Exception as e:
+        raise e
+    finally:
         if os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
+        if os.path.exists(tmp_video_path):
             os.remove(tmp_video_path)
-        raise e
     
 
 def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -362,19 +413,46 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
     return
 
 
-def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE):
-    xmind_file = get_file_content_by_obj_id(repo_id, file_id)
-    xmind_file_str = BytesIO(xmind_file)
+def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE, file_size=0):
+    """Extract thumbnail from XMIND file.
     
-    xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
-    extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
-    extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
+    tmp_xmind_path = os.path.join(tempfile.gettempdir(), file_id + '.xmind')
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
+    xmind_file = None
+    xmind_file_str = None
+    xmind_zip_file = None
+    
+    try:
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to write to temp file
+            stream_file_to_path(repo_id, file_id, tmp_xmind_path)
+            xmind_zip_file = zipfile.ZipFile(tmp_xmind_path, 'r')
+        else:
+            # Small file: load into memory directly
+            xmind_file = get_file_content_by_obj_id(repo_id, file_id)
+            xmind_file_str = BytesIO(xmind_file)
+            xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
+        
+        extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
+        extracted_xmind_image_str = BytesIO(extracted_xmind_image)
 
-    # save origin xmind image to thumbnail folder
-    thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
-    if not os.path.exists(thumbnail_dir):
-        os.makedirs(thumbnail_dir)
-    local_xmind_image = os.path.join(thumbnail_dir, file_id)
+        # save origin xmind image to thumbnail folder
+        thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
+        if not os.path.exists(thumbnail_dir):
+            os.makedirs(thumbnail_dir)
+        local_xmind_image = os.path.join(thumbnail_dir, file_id)
 
-    _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+        _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+    finally:
+        if xmind_zip_file:
+            xmind_zip_file.close()
+        if xmind_file_str:
+            xmind_file_str.close()
+        if xmind_file:
+            del xmind_file
+        if os.path.exists(tmp_xmind_path):
+            os.unlink(tmp_xmind_path)
     return
