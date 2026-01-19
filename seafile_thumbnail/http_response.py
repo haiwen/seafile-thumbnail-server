@@ -1,5 +1,6 @@
 import logging
 import time
+import asyncio
 import os.path
 import os
 import json
@@ -13,7 +14,7 @@ from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 logger = logging.getLogger(__name__)
 
-TIME_OUT = 30
+TIMEOUT = 60
 
 
 def gen_response_start(status, content_type):
@@ -99,9 +100,9 @@ async def gen_thumbnail_response(request, thumbnail_info):
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
                 break
-            if time.time() - start_time > TIME_OUT:
+            if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
-            time.sleep(0.2)
+            await asyncio.sleep(0.2)
 
     return generate_json_response(result, status, content_type)
 
@@ -114,6 +115,7 @@ async def thumbnail_get(request, thumbnail_info):
     thumbnail_file = thumbnail_info['thumbnail_path']
     last_modified = thumbnail_info['last_modified']
     etag = thumbnail_info['etag']
+    
     if not os.path.exists(thumbnail_file):
         task_result, status = generate_thumbnail(request, thumbnail_info)
         if status >= 500:
@@ -128,9 +130,9 @@ async def thumbnail_get(request, thumbnail_info):
                     if error_msg:
                         return gen_error_response(415, error_msg)
                     break
-                if time.time() - start_time > TIME_OUT:
+                if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()
@@ -141,7 +143,8 @@ async def thumbnail_get(request, thumbnail_info):
                 response_start['headers'].append([b'ETag', etag.encode('utf-8')])
 
             return response_start, response_body
-    except:
+    except Exception as e:
+        logger.error(e)
         err_msg = 'Failed to get thumbnail.'
         return gen_error_response(400, err_msg)
 
@@ -176,9 +179,9 @@ async def share_link_thumbnail_create(request, thumbnail_info):
                 if error_msg:
                     result['encoded_thumbnail_src'] = ''
                 break
-            if time.time() - start_time > TIME_OUT:
+            if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
-            time.sleep(0.2)
+            await asyncio.sleep(0.2)
     return generate_json_response(result, status, content_type)
 
 
@@ -206,9 +209,9 @@ async def share_link_thumbnail_get(request, thumbnail_info):
                     if error_msg:
                         return gen_error_response(415, error_msg)
                     break
-                if time.time() - start_time > TIME_OUT:
+                if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()
@@ -217,6 +220,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
             response_start['headers'].append([b'Last-Modified', last_modified.encode('utf-8')])
             response_body = gen_response_body(thumbnail)
             return response_start, response_body
-    except:
+    except Exception as e:
+        logger.error(e)
         err_msg = 'Failed to get thumbnail.'
         return gen_error_response(400, err_msg)
