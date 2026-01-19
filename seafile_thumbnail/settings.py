@@ -7,6 +7,7 @@ PROJECT_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
 SITE_ROOT = '/'
 INNER_SEAHUB_SERVICE_URL = 'http://127.0.0.1:8000'
 
+
 # dir
 CONF_DIR = '/data/conf/'
 LOG_DIR = '.'
@@ -44,7 +45,8 @@ THUMBNAIL_EXTENSION = 'jpeg'
 SESSION_KEY = 'sessionid'
 
 JWT_PRIVATE_KEY = ""
-# thread count
+# thread count (creates 4 threads per worker: ImageManager, PdfManager, VideoManager, SeadocManager)
+# total threads = TASK_WORKERS * 4 + 1 (monitor thread)
 TASK_WORKERS = 3
 
 
@@ -71,6 +73,7 @@ THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
 JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
 THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT = int(os.environ.get('THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT', 256))
 THUMBNAIL_IMAGE_SIZE_LIMIT = int(os.environ.get('THUMBNAIL_IMAGE_SIZE_LIMIT', THUMBNAIL_IMAGE_SIZE_LIMIT))
+TASK_WORKERS = int(os.environ.get('THUMBNAIL_TASK_WORKERS', TASK_WORKERS))
 
 # config for mysql
 MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db')
