@@ -270,6 +270,7 @@ def pdf_to_images(pdf_input, prefix_path, dpi=150, file_size=0):
             '-r', str(dpi),
             '-f', '1',
             '-l', '1',
+            '-scale-to', '1024',
             '-singlefile', tmp_file,
             '-o', prefix_path
         ]
