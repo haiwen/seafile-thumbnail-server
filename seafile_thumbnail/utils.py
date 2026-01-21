@@ -177,7 +177,6 @@ def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
         with open(dest_path, 'wb') as dest_file:
             while True:
                 chunk = stream.read(chunk_size)
-                print(chunk)
                 if not chunk:
                     break
                 dest_file.write(chunk)
