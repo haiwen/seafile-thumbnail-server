@@ -13,6 +13,11 @@ function set_env() {
     export PYTHONPATH=/opt/seafile/seafile/lib/python3/site-packages/:/usr/lib/python3.12/dist-packages:/usr/lib/python3.12/site-packages:/usr/local/lib/python3.12/dist-packages:/usr/local/lib/python3.12/site-packages
     export PATH=/opt/seafile/seafile/bin/:$PATH
 
+    export JEMALLOC_LIB=${JEMALLOC_LIB:-/usr/lib/x86_64-linux-gnu/libjemalloc.so.2}
+    if [ -z "$LD_PRELOAD" ] && [ -f "$JEMALLOC_LIB" ]; then
+        export LD_PRELOAD="$JEMALLOC_LIB"
+    fi
+
     export SEAFILE_CONF_DIR=/opt/seafile/seafile-data
     export SEAFILE_CENTRAL_CONF_DIR=/opt/seafile/conf
     export CONF_DIR=/opt/seafile/conf

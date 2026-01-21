@@ -18,7 +18,8 @@ RUN apt-get update --fix-missing && apt upgrade -y
 ## Dev related libs
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y tzdata \
     nginx gcc libz-dev libmemcached-dev \
-    procps net-tools curl vim poppler-utils ffmpeg
+    procps net-tools curl vim poppler-utils ffmpeg \
+    libjemalloc2
 
 # set python3 global
 RUN apt-get install -y python3 python3-pip python3-setuptools && \
