@@ -1,4 +1,5 @@
 import os
+import gc
 import posixpath
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
     AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
@@ -19,6 +20,7 @@ PREVIEW_FILEEXT = {
     SEADOC: ('sdoc',),
 }
 ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
+LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024 # 1GB, trigger garbage collection for large file.
 
 
 
@@ -175,11 +177,16 @@ def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
         with open(dest_path, 'wb') as dest_file:
             while True:
                 chunk = stream.read(chunk_size)
+                print(chunk)
                 if not chunk:
                     break
                 dest_file.write(chunk)
                 total_written += len(chunk)
-        
+                del chunk
+        if total_written > LARGE_FILE_THRESHOLD:
+            gc.collect()
+
+        return total_written
         return total_written
     except Exception as e:
         if os.path.exists(dest_path):

@@ -1,4 +1,3 @@
-import gc
 import subprocess
 import logging
 import os
@@ -158,7 +157,6 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
             f.close()
         if image_file is not None:
             del image_file
-        gc.collect()
     return
 
 
@@ -200,7 +198,6 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             del tmp_file
         if os.path.exists(tmp_img_path):
             os.unlink(tmp_img_path)
-        gc.collect()
     return
 
 
@@ -311,7 +308,6 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             pdf_to_images(pdf_input, tmp_prefix)
             del pdf_input
             pdf_input = None
-        gc.collect()
         
         t2 = timeit.default_timer()
         logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
@@ -328,7 +324,6 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             os.unlink(tmp_pdf_path)
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
-        gc.collect()
     return
 
 
@@ -382,7 +377,6 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0)
             os.unlink(tmp_image_path)
         if tmp_video_path and os.path.exists(tmp_video_path):
             os.remove(tmp_video_path)
-        gc.collect()
     
 
 def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -423,7 +417,6 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             del svg_content
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
-        gc.collect()
     return
         
 
@@ -502,5 +495,4 @@ def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE, file_size=0):
             del xmind_file
         if os.path.exists(tmp_xmind_path):
             os.unlink(tmp_xmind_path)
-        gc.collect()
     return
