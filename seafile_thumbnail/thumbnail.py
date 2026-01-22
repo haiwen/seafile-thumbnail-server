@@ -94,6 +94,7 @@ def generate_thumbnail(request, thumbnail_info):
         repo_id = origin_repo_id
 
 
+
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
         return (False, 400)
     if os.path.exists(thumbnail_file):
@@ -101,8 +102,8 @@ def generate_thumbnail(request, thumbnail_info):
 
     if filetype == VIDEO:
         # video thumbnails
-        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, size,
-                                                        thumbnail_file, file_size)
+        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, 
+                                                                size, thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
@@ -114,7 +115,7 @@ def generate_thumbnail(request, thumbnail_info):
                 return (task_id, status)
         return (task_id, 200)
     if filetype == XMIND:
-        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, size, file_size)
+        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, path, size, file_size)
         if status != 200:
                 return (task_id, status)
         return (task_id, 200)
@@ -136,7 +137,7 @@ def generate_thumbnail(request, thumbnail_info):
             return (task_id, status)
         return (task_id, 200)
 
-    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
+    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id, path,
                                                           thumbnail_file, size)
     if status != 200:
         return (task_id, status)
