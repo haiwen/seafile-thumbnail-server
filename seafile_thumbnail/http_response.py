@@ -1,5 +1,6 @@
 import logging
 import time
+import asyncio
 import os.path
 import os
 import json
@@ -101,7 +102,7 @@ async def gen_thumbnail_response(request, thumbnail_info):
                 break
             if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
-            time.sleep(0.2)
+            await asyncio.sleep(0.2)
 
     return generate_json_response(result, status, content_type)
 
@@ -131,7 +132,7 @@ async def thumbnail_get(request, thumbnail_info):
                     break
                 if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()
@@ -180,7 +181,7 @@ async def share_link_thumbnail_create(request, thumbnail_info):
                 break
             if time.time() - start_time > TIMEOUT:
                 return gen_error_response(400, 'Timeout Error.')
-            time.sleep(0.2)
+            await asyncio.sleep(0.2)
     return generate_json_response(result, status, content_type)
 
 
@@ -210,7 +211,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
                     break
                 if time.time() - start_time > TIMEOUT:
                     return gen_error_response(400, 'Timeout Error.')
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
     try:
         with open(thumbnail_file, 'rb') as f:
             thumbnail = f.read()

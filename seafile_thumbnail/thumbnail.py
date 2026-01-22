@@ -11,7 +11,7 @@ from PIL import Image
 
 from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI, \
-    gen_thumbnail_access_token
+    gen_thumbnail_access_token, stream_file_to_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
@@ -107,8 +107,8 @@ def generate_thumbnail(request, thumbnail_info):
 
     if filetype == VIDEO:
         # video thumbnails
-        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, size,
-                                                        thumbnail_file)
+        task_id, status = thumbnail_task_manager.add_video_task(create_video_thumbnails, repo_id, file_id, path, 
+                                                                size, thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
@@ -120,7 +120,7 @@ def generate_thumbnail(request, thumbnail_info):
                 return (task_id, status)
         return (task_id, 200)
     if filetype == XMIND:
-        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, size)
+        task_id, status = thumbnail_task_manager.add_xmind_create_task(extract_xmind_image, repo_id, file_id, path, size, file_size)
         if status != 200:
                 return (task_id, status)
         return (task_id, 200)
@@ -136,8 +136,8 @@ def generate_thumbnail(request, thumbnail_info):
         return (task_id, 200)
     
     if filetype == SVG:
-        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_svg_thumbnails, repo_id, file_id, path,
-                                                                            size, thumbnail_file, file_size)
+        task_id, status = thumbnail_task_manager.add_svg_create_task(create_svg_thumbnails, repo_id, file_id, path,
+                                                                     size, thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
@@ -150,7 +150,7 @@ def generate_thumbnail(request, thumbnail_info):
             return (task_id, status)
         return (task_id, 200)
 
-    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id,
+    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id, path,
                                                           thumbnail_file, size)
     
     
@@ -160,12 +160,19 @@ def generate_thumbnail(request, thumbnail_info):
 
 
 def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
-    # image thumbnail
-    image_file = get_file_content_by_obj_id(repo_id, file_id)
-    if image_file == b'':
-        raise Exception('Image file is empty')
-    f = BytesIO(image_file)
-    _create_thumbnail_common(f, thumbnail_file, size)
+    image_file = None
+    f = None
+    try:
+        image_file = get_file_content_by_obj_id(repo_id, file_id)
+        if image_file == b'':
+            raise Exception('Image file is empty')
+        f = BytesIO(image_file)
+        _create_thumbnail_common(f, thumbnail_file, size)
+    finally:
+        if f is not None:
+            f.close()
+        if image_file is not None:
+            del image_file
     return
 
 
@@ -178,33 +185,63 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         return
 
     tmp_img_path = str(os.path.join(tempfile.gettempdir(), '%s.png' % file_id))
-    t1 = timeit.default_timer()
-    tmp_file = get_file_content_by_obj_id(repo_id, file_id)
-    f = BytesIO(tmp_file)
-    psd = PSDImage.open(f)
-
-    merged_image = psd.topil()
-    merged_image.save(tmp_img_path)
-
-    t2 = timeit.default_timer()
-    logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
-
+    tmp_file = None
+    f = None
+    psd = None
+    merged_image = None
+    
     try:
+        t1 = timeit.default_timer()
+        tmp_file = get_file_content_by_obj_id(repo_id, file_id)
+        f = BytesIO(tmp_file)
+        psd = PSDImage.open(f)
+        merged_image = psd.topil()
+        merged_image.save(tmp_img_path)
+        t2 = timeit.default_timer()
+        logger.debug('Extract psd image [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
+
         _create_thumbnail_common(tmp_img_path, thumbnail_file, size)
-        os.unlink(tmp_img_path)
-        return
     except Exception as e:
         logger.warning(e)
-        os.path.exists(tmp_img_path) and os.unlink(tmp_img_path)
-        return
+    finally:
+        if merged_image is not None:
+            merged_image.close()
+        if psd is not None:
+            psd.close()
+        if f is not None:
+            f.close()
+        if tmp_file is not None:
+            del tmp_file
+        if os.path.exists(tmp_img_path):
+            os.unlink(tmp_img_path)
+    return
 
 
-def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
-    with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmpfile:
-        tmpfile.write(pdf_bytes)
+def pdf_to_images(pdf_input, prefix_path, dpi=150, file_size=0):
+    """Convert PDF to images.
+    
+    Args:
+        pdf_input: Either bytes content or file path (str)
+        prefix_path: Output path prefix
+        dpi: Resolution
+        file_size: File size in bytes (used for large file detection)
+    """
+    # Determine if input is bytes or file path
+    if isinstance(pdf_input, bytes):
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmpfile.write(pdf_input)
+        tmpfile.close()
         tmp_file = tmpfile.name
-        
-        if len(pdf_bytes) > LARGE_PDF_SIZE_THRESHOLD:
+        cleanup_tmp = True
+        check_size = len(pdf_input)
+    else:
+        # pdf_input is a file path
+        tmp_file = pdf_input
+        cleanup_tmp = False
+        check_size = file_size
+    
+    try:
+        if check_size > LARGE_PDF_SIZE_THRESHOLD:
             pdf_info_command = [
                 'pdfinfo',
                 '-f', '1',
@@ -246,6 +283,7 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
             '-r', str(dpi),
             '-f', '1',
             '-l', '1',
+            '-scale-to', '1024',
             '-singlefile', tmp_file,
             '-o', prefix_path
         ]
@@ -257,40 +295,78 @@ def pdf_bytes_to_images(pdf_bytes, prefix_path, dpi=150):
         except subprocess.CalledProcessError as e:
             logger.error(f'pdftoppm failed: {e}')
             raise
+    finally:
+        if cleanup_tmp and os.path.exists(tmp_file):
+            os.unlink(tmp_file)
 
 
 def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
+    """Create PDF thumbnail.
+    
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
     t1 = timeit.default_timer()
-    tmp_path = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_prefix = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_png_path = tmp_prefix + '.png'  # pdftoppm outputs to this path
+    tmp_pdf_path = os.path.join(tempfile.gettempdir(), file_id + '.pdf')
+    pdf_input = None
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
     
     try:
-        image_file = get_file_content_by_obj_id(repo_id, file_id)
-        pdf_bytes_to_images(image_file, tmp_path)
-        tmp_path = tmp_path + '.png'
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to write to temp file, then pass file path
+            stream_file_to_path(repo_id, file_id, tmp_pdf_path)
+            pdf_to_images(tmp_pdf_path, tmp_prefix, file_size=file_size)
+        else:
+            # Small file: load into memory directly
+            pdf_input = get_file_content_by_obj_id(repo_id, file_id)
+            pdf_to_images(pdf_input, tmp_prefix)
+            del pdf_input
+            pdf_input = None
+        
         t2 = timeit.default_timer()
         logger.debug('Create PDF thumbnail of [%s](size: %s) takes: %s' % (path, file_size, (t2 - t1)))
 
-        _create_thumbnail_common(tmp_path, thumbnail_file, size)
-        os.unlink(tmp_path)
-        return
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
     except Exception as e:
         logger.warning(f'Error creating PDF thumbnail: {e}')
-        if os.path.exists(tmp_path + '.png'):
-            os.unlink(tmp_path + '.png')
         raise
+    finally:
+        if pdf_input is not None:
+            del pdf_input
+        # Cleanup temp files
+        if os.path.exists(tmp_pdf_path):
+            os.unlink(tmp_pdf_path)
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+    return
 
 
-def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
-    tmp_image_path = os.path.join(
-        tempfile.gettempdir(), file_id + '.png')
+def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0):
+    """Create video thumbnail.
+    
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
+    tmp_image_path = os.path.join(tempfile.gettempdir(), file_id + '.png')
+    tmp_video_path = os.path.join(tempfile.gettempdir(), file_id + '.mp4')
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
+    
     try:
-        tmp_video = get_file_content_by_obj_id(repo_id, file_id)
-        if tmp_video == b'':
-            raise Exception('Video file is empty')
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmpfile:
-            tmpfile.write(tmp_video)
-            tmpfile.seek(0)
-            tmp_video_path = tmpfile.name
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to avoid memory issues
+            bytes_written = stream_file_to_path(repo_id, file_id, tmp_video_path)
+            if bytes_written == 0:
+                raise Exception('Video file is empty')
+        else:
+            # Small file: load into memory for better performance
+            video_content = get_file_content_by_obj_id(repo_id, file_id)
+            if not video_content:
+                raise Exception('Video file is empty')
+            with open(tmp_video_path, 'wb') as f:
+                f.write(video_content)
+            del video_content
         
         # get video duration
         duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
@@ -305,17 +381,18 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file):
         
         if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
             _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
-            os.unlink(tmp_image_path)
-            os.remove(tmp_video_path)
             return True
         else:
             raise Exception("Failed to generate video thumbnail")
             
     except Exception as e:
-        if os.path.exists(tmp_image_path):
-            os.unlink(tmp_image_path)
-            os.remove(tmp_video_path)
         raise e
+    finally:
+        # Cleanup temp files
+        if tmp_image_path and os.path.exists(tmp_image_path):
+            os.unlink(tmp_image_path)
+        if tmp_video_path and os.path.exists(tmp_video_path):
+            os.remove(tmp_video_path)
     
 
 def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -326,9 +403,11 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
                      "Please install by 'pip install cairosvg' (requires system cairo library)")
         raise Exception("Missing dependency: cairosvg")
     
-    svg_content = get_file_content_by_obj_id(repo_id, file_id)
+    svg_content = None
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    
     try:
+        svg_content = get_file_content_by_obj_id(repo_id, file_id)
         t1 = timeit.default_timer()
         cairosvg.svg2png(
             bytestring=svg_content,
@@ -337,18 +416,24 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             output_width=size,
             output_height=size
         )
+        # MEMORY FIX: delete svg_content after conversion
+        del svg_content
+        svg_content = None
         
         t2 = timeit.default_timer()
         logger.debug(f"Convert SVG [{path}] to PNG takes: {t2 - t1:.2f}s (size: {file_size} bytes)")
         
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
-        os.unlink(tmp_png_path)
-        return
     except Exception as e:
         logger.exception(e)
         logger.error(f"Failed to generate SVG thumbnail for [{path}]: {str(e)}")
-        os.unlink(tmp_png_path)
         raise e
+    finally:
+        if svg_content is not None:
+            del svg_content
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+    return
         
 
 def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False, path=None):
@@ -361,47 +446,80 @@ def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False, path=Non
     # check image memory cost size limit
     # use RGBA as default mode(4x8-bit pixels, true colour with transparency mask)
     # every pixel will cost 4 byte in RGBA mode
-    width, height = image.size
-    
-    thumbnail_image_size = width * height * 4 / 1024 / 1024
-    if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
-        raise Exception('Image memory cost exceeds the limit')
+    try:
+        width, height = image.size
         
-    if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
-        image = image.convert("RGB")
-    image = get_rotated_image(image)
-    if fix_width:
-        image.thumbnail((size, 100000), Image.Resampling.LANCZOS)
-    else:
-        image.thumbnail((size, size), Image.Resampling.LANCZOS)
-    save_type = THUMBNAIL_EXTENSION
-    if image.mode in ['RGBA', 'P']:
-        save_type = 'png'
-    image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
-    
-    # future remove
-    if fix_width:
-        image2 = Image.open(thumbnail_file)
-        width2, height2 = image2.size
-        logger.debug(f"sdoc screenshot size: w:{width}, h:{height}  sdoc thumbnail_size:w:{width2}, h:{height2}, path:{path}")
+        thumbnail_image_size = width * height * 4 / 1024 / 1024
+        if thumbnail_image_size > THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT:
+            raise Exception('Image memory cost exceeds the limit')
+            
+        if image.mode not in ["1", "L", "P", "RGB", "RGBA"]:
+            image = image.convert("RGB")
+        image = get_rotated_image(image)
+        if fix_width:
+            image.thumbnail((size, 100000), Image.Resampling.LANCZOS)
+        else:
+            image.thumbnail((size, size), Image.Resampling.LANCZOS)
+        save_type = THUMBNAIL_EXTENSION
+        if image.mode in ['RGBA', 'P']:
+            save_type = 'png'
+        image.save(thumbnail_file, save_type, icc_profile=image.info.get('icc_profile'))
+        
+        # future remove
+        if fix_width:
+            image2 = Image.open(thumbnail_file)
+            width2, height2 = image2.size
+            logger.debug(f"sdoc screenshot size: w:{width}, h:{height}  sdoc thumbnail_size:w:{width2}, h:{height2}, path:{path}")
+    finally:
+        image.close()
     return
 
 
-def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE):
-    xmind_file = get_file_content_by_obj_id(repo_id, file_id)
-    xmind_file_str = BytesIO(xmind_file)
+def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE, file_size=0):
+    """Extract thumbnail from XMIND file.
     
-    xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
-    extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
-    extracted_xmind_image_str = BytesIO(extracted_xmind_image)
+    For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
+    For small files, load into memory for better performance.
+    """
+    xmind_file = None
+    xmind_file_str = None
+    xmind_zip_file = None
+    extracted_xmind_image_str = None
+    tmp_xmind_path = os.path.join(tempfile.gettempdir(), file_id + '.xmind')
+    size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
+    
+    try:
+        if file_size > size_limit_bytes:
+            # Large file: use streaming to write to temp file
+            stream_file_to_path(repo_id, file_id, tmp_xmind_path)
+            xmind_zip_file = zipfile.ZipFile(tmp_xmind_path, 'r')
+        else:
+            # Small file: load into memory directly
+            xmind_file = get_file_content_by_obj_id(repo_id, file_id)
+            xmind_file_str = BytesIO(xmind_file)
+            xmind_zip_file = zipfile.ZipFile(xmind_file_str, 'r')
+        
+        extracted_xmind_image = xmind_zip_file.read('Thumbnails/thumbnail.png')
+        extracted_xmind_image_str = BytesIO(extracted_xmind_image)
 
-    # save origin xmind image to thumbnail folder
-    thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
-    if not os.path.exists(thumbnail_dir):
-        os.makedirs(thumbnail_dir)
-    local_xmind_image = os.path.join(thumbnail_dir, file_id)
+        # save origin xmind image to thumbnail folder
+        thumbnail_dir = os.path.join(THUMBNAIL_ROOT, str(size))
+        if not os.path.exists(thumbnail_dir):
+            os.makedirs(thumbnail_dir)
+        local_xmind_image = os.path.join(thumbnail_dir, file_id)
 
-    _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+        _create_thumbnail_common(extracted_xmind_image_str, local_xmind_image, size)
+    finally:
+        if extracted_xmind_image_str is not None:
+            extracted_xmind_image_str.close()
+        if xmind_zip_file is not None:
+            xmind_zip_file.close()
+        if xmind_file_str is not None:
+            xmind_file_str.close()
+        if xmind_file is not None:
+            del xmind_file
+        if os.path.exists(tmp_xmind_path):
+            os.unlink(tmp_xmind_path)
     return
 
 def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_file, file_size):

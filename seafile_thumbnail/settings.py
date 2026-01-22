@@ -22,6 +22,9 @@ ENABLE_XMIND_THUMBNAIL = True
 ENABLE_PDF_THUMBNAIL = True
 
 # size(MB) limit for generate thumbnail
+# THUMBNAIL_IMAGE_SIZE_LIMIT: original file size on disk (default 30MB)
+# THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT: decoded image memory size in MB (width * height * 4 bytes, default 256MB)
+# Both limits protect against memory issues from different angles
 THUMBNAIL_IMAGE_SIZE_LIMIT = 30
 
 # for thumbnail: height(px) and width(px)
@@ -42,7 +45,8 @@ THUMBNAIL_EXTENSION = 'jpeg'
 SESSION_KEY = 'sessionid'
 
 JWT_PRIVATE_KEY = ""
-# thread count
+# thread count (creates 4 threads per worker: ImageManager, PdfManager, VideoManager, SeadocManager)
+# total threads = TASK_WORKERS * 4 + 1 (monitor thread)
 TASK_WORKERS = 3
 
 
@@ -68,6 +72,8 @@ LOG_DIR = os.getenv('LOG_DIR') or LOG_DIR
 THUMBNAIL_ROOT = os.getenv('THUMBNAIL_ROOT') or THUMBNAIL_ROOT
 JWT_PRIVATE_KEY = os.getenv('JWT_PRIVATE_KEY') or JWT_PRIVATE_KEY
 THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT = int(os.environ.get('THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT', 256))
+THUMBNAIL_IMAGE_SIZE_LIMIT = int(os.environ.get('THUMBNAIL_IMAGE_SIZE_LIMIT', THUMBNAIL_IMAGE_SIZE_LIMIT))
+TASK_WORKERS = int(os.environ.get('THUMBNAIL_TASK_WORKERS', TASK_WORKERS))
 
 # config for mysql
 MYSQL_DB_HOST = os.environ.get('SEAFILE_MYSQL_DB_HOST', 'db')
