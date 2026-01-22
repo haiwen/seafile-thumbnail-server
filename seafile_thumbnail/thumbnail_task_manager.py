@@ -4,6 +4,9 @@ import logging
 import time
 import uuid
 import os
+import hashlib
+
+from seafile_thumbnail.settings import TASK_WORKERS
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,9 @@ RESULT_EXPIRE_TIME = 120
 
 # Memory limit in MB, exit for restart if exceeded (default 4GB)
 MEMORY_LIMIT_MB = int(os.environ.get('THUMBNAIL_MEMORY_LIMIT', 4096))
-
+IMAGE_QUEUE_SIZE = TASK_WORKERS * 4
+PDF_QUEUE_SIZE = TASK_WORKERS * 3
+VIDEO_QUEUE_SIZE = TASK_WORKERS * 2
 
 class ThumbnailManager(object):
 
@@ -20,11 +25,10 @@ class ThumbnailManager(object):
         self.tasks_map = {}
         # Store results with timestamp: {task_id: (result, timestamp)}
         self.task_results_map = {}
-        self.image_queue = queue.Queue(32)
-        self.pdf_queue = queue.Queue(32)  # Separate queue for slow tasks (PDF, PSD, XMIND)
-        self.video_queue = queue.Queue(32)
+        self.image_queue = queue.Queue(IMAGE_QUEUE_SIZE)
+        self.pdf_queue = queue.Queue(PDF_QUEUE_SIZE)  # Separate queue for slow tasks (PDF, PSD, XMIND)
+        self.video_queue = queue.Queue(VIDEO_QUEUE_SIZE)
 
-        self.seadoc_queue = queue.Queue(100)
         self.current_task_info = {}
         self.threads = []
         self._results_lock = threading.Lock()
@@ -38,14 +42,16 @@ class ThumbnailManager(object):
             info[t.name] = t.is_alive()
         return info
 
-    def add_image_creat_task(self, func, repo, file_id, thumbnail_file, size):
+    def add_image_creat_task(self, func, repo_id, file_id, path, thumbnail_file, size):
         if self.image_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, thumbnail_file, size))
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.image_queue.queue:
+            return (task_id, 200)
+        task = (func, (repo_id, file_id, thumbnail_file, size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
@@ -57,7 +63,9 @@ class ThumbnailManager(object):
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.image_queue.queue:
+            return (task_id, 200)
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
@@ -70,45 +78,39 @@ class ThumbnailManager(object):
                             % (self.pdf_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.pdf_queue.queue:
+            return (task_id, 200)
         task = (func, (repo_id, file_id, path, size, thumbnail_file, file_size))
         self.pdf_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
 
-    def add_xmind_create_task(self, func, repo_id, file_id, size, file_size=0):
+    def add_xmind_create_task(self, func, repo_id, file_id, path, size, file_size=0):
         # XMIND just extracts embedded thumbnail from ZIP, very fast, use image_queue
         if self.image_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.image_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.image_queue.queue:
+            return (task_id, 200)
         task = (func, (repo_id, file_id, size, file_size))
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
     
-    def add_seadoc_create_task(self, func, request, repo_id, file_id, path, size, thumbnail_file, file_size):
-        if self.seadoc_queue.full():
-            logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
-                            % (self.seadoc_queue.qsize(), self.current_task_info,
-                            self.threads_is_alive()))
-            return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
-        task = (func, (request, repo_id, file_id, path, size, thumbnail_file, file_size))
-        self.seadoc_queue.put(task_id)
-        self.tasks_map[task_id] = task
-        return task_id, 200
-
-    def add_video_task(self, func, repo, file_id, size, thumbnail_file, file_size=0):
+    def add_video_task(self, func, repo_id, file_id, path, size, thumbnail_file, file_size=0):
         if self.video_queue.full():
             logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
                             % (self.video_queue.qsize(), self.current_task_info,
                             self.threads_is_alive()))
             return ('thumbnail server busy.', 503)
-        task_id = str(uuid.uuid4())
-        task = (func, (repo, file_id, size, thumbnail_file, file_size))
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.video_queue.queue:
+            return (task_id, 200)
+        task = (func, (repo_id, file_id, size, thumbnail_file, file_size))
         self.video_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
