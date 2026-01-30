@@ -12,7 +12,7 @@ from PIL import Image
 from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.utils import get_file_content_by_obj_id, need_generate_thumbnail, normalize_file_path, SeafileAPI, \
     gen_thumbnail_access_token, stream_file_to_path
-from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
+from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC, RAW, EXR
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
     INNER_SEAHUB_SERVICE_URL
@@ -128,7 +128,7 @@ def generate_thumbnail(request, thumbnail_info):
     # image thumbnails
     if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
         return ('The image size exceeds the limit', 400)
-    if fileext.lower() == 'psd':
+    if fileext.lower() in ('psd', 'psb'):
         task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
         if status != 200:
@@ -146,6 +146,22 @@ def generate_thumbnail(request, thumbnail_info):
         task_id, status = thumbnail_task_manager.add_seadoc_create_task(create_seadoc_thumbnail, request, repo_id, file_id,
                                                                             path,
                                                                             size, thumbnail_file, file_size)
+        if status != 200:
+            return (task_id, status)
+        return (task_id, 200)
+
+    if filetype == RAW:
+        # RAW image thumbnails (CR2, CR3, NEF, ARW, DNG)
+        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_raw_thumbnail, repo_id, file_id, path,
+                                                             size, thumbnail_file, file_size)
+        if status != 200:
+            return (task_id, status)
+        return (task_id, 200)
+
+    if filetype == EXR:
+        # OpenEXR image thumbnails
+        task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_exr_thumbnail, repo_id, file_id, path,
+                                                             size, thumbnail_file, file_size)
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
@@ -432,7 +448,109 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
     return
+
+
+def create_raw_thumbnail(repo_id, file_id, path, size, thumbnail_file, file_size):
+    try:
+        import rawpy
+    except ImportError:
+        logger.error("Could not find rawpy installed. "
+                     "Please install by 'pip install rawpy' (requires system libraw library)")
+        raise Exception("Missing dependency: rawpy")
+    
+    tmp_raw_path = os.path.join(tempfile.gettempdir(), f"{file_id}.raw")
+    tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    
+    try:
+        t1 = timeit.default_timer()
         
+        stream_file_to_path(repo_id, file_id, tmp_raw_path)
+        
+        with rawpy.imread(tmp_raw_path) as raw:
+            # Use half_size=True for faster processing when generating thumbnails
+            rgb = raw.postprocess(
+                use_camera_wb=True,
+                half_size=True,
+                no_auto_bright=False,
+                output_bps=8
+            )
+          
+        # Save as PNG
+        image = Image.fromarray(rgb)
+        image.save(tmp_png_path, 'PNG')
+        image.close()
+        del rgb
+        
+        t2 = timeit.default_timer()
+        logger.debug(f"Convert RAW [{path}] to PNG takes: {t2 - t1:.2f}s (size: {file_size} bytes)")
+        
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Failed to generate RAW thumbnail for [{path}]: {str(e)}")
+        raise e
+    finally:
+        if os.path.exists(tmp_raw_path):
+            os.unlink(tmp_raw_path)
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+    return
+
+
+def create_exr_thumbnail(repo_id, file_id, path, size, thumbnail_file, file_size):
+    """
+    EXR files contain HDR (High Dynamic Range) data, so need to apply
+    tone mapping to convert to displayable 8-bit image.
+    """
+    try:
+        import imageio.v3 as iio
+        import numpy as np
+    except ImportError:
+        logger.error("Could not find imageio installed. "
+                     "Please install by 'pip install imageio[pyav]'")
+        raise Exception("Missing dependency: imageio")
+    
+    tmp_exr_path = os.path.join(tempfile.gettempdir(), f"{file_id}.exr")
+    tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    
+    try:
+        t1 = timeit.default_timer()
+        
+        stream_file_to_path(repo_id, file_id, tmp_exr_path)
+        
+        hdr_data = iio.imread(tmp_exr_path)
+        
+        # Simple Reinhard tone mapping for HDR to LDR conversion
+        # Formula: L_out = L_in / (1 + L_in)
+        hdr_data = np.clip(hdr_data, 0, None)  # Ensure non-negative
+        ldr_data = hdr_data / (1.0 + hdr_data)
+        
+        # Apply gamma correction and convert to 8-bit
+        gamma = 2.2
+        ldr_data = np.power(ldr_data, 1.0 / gamma)
+        ldr_data = np.clip(ldr_data * 255, 0, 255).astype(np.uint8)
+        
+        # Save as PNG
+        image = Image.fromarray(ldr_data)
+        image.save(tmp_png_path, 'PNG')
+        image.close()
+        del hdr_data, ldr_data
+        
+        t2 = timeit.default_timer()
+        logger.debug(f"Convert EXR [{path}] to PNG takes: {t2 - t1:.2f}s (size: {file_size} bytes)")
+        
+        _create_thumbnail_common(tmp_png_path, thumbnail_file, size)
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Failed to generate EXR thumbnail for [{path}]: {str(e)}")
+        raise e
+    finally:
+        if os.path.exists(tmp_exr_path):
+            os.unlink(tmp_exr_path)
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+    return
+
 
 def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False, path=None):
     """Common logic for creating image thumbnail.
