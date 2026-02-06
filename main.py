@@ -7,25 +7,44 @@ import argparse
 from app import app
 from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
+from seafile_thumbnail.repo_storage_task import RepoStorageTask
 from threading import Thread
 from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS
 
 
-
-class ThumbnailServer(Thread):
+class ThumbnailServer:
 
     def __init__(self, task_workers):
-        Thread.__init__(self)
-        thumbnail_task_manager.run(task_workers)
-
+        self.task_workers = task_workers
+        self.repo_storage_task_event = RepoStorageTask()
+        
         config = uvicorn.Config(app, port=8088)
-        self._server = uvicorn.Server(config)
-        get_playwright_manager().start()
+        self._uvicorn_server = uvicorn.Server(config)
+        self._server_thread = None
 
-    def run(self):
+    def _server_runner(self):
+        """Run uvicorn server"""
         logging.info('Starting seafile thumbnail server...')
-        self._server.run()
+        self._uvicorn_server.run()
+    def start(self):
+        logging.info('Initializing seafile thumbnail components')
+        # start thumbnail task workers (non-blocking)
+        thumbnail_task_manager.run(self.task_workers)
+        # start Playwright manager
+        get_playwright_manager().start()
+        # start repo storage task thread
+        self.repo_storage_task_event.start()
 
+        # run uvicorn server in a dedicated thread so we can manage other threads
+        self._server_thread = Thread(target=self._server_runner, name='uvicorn-server')
+        self._server_thread.daemon = True
+        self._server_thread.start()
+    def wait(self):
+        if self._server_thread is not None:
+            try:
+                self._server_thread.join()
+            except KeyboardInterrupt:
+                pass
 
 def run_server(loglevel='info'):
     level = logging.INFO
@@ -54,11 +73,10 @@ def run_server(loglevel='info'):
         logging.root.setLevel(level)
         logging.root.addHandler(handler)
 
-
+        thumbnail_server = ThumbnailServer(TASK_WORKERS)
+        thumbnail_server.start()
+        thumbnail_server.wait()
     
-    thumbnail_server = ThumbnailServer(TASK_WORKERS)
-    thumbnail_server.run()
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Seafile Thumbnail Server')
