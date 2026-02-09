@@ -10,7 +10,7 @@ from threading import Thread
 from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS
 
 # Custom uvicorn log config with timestamps
-LOG_CONFIG = {
+UVICORN_LOG_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -50,14 +50,13 @@ LOG_CONFIG = {
     },
 }
 
-
 class ThumbnailServer(Thread):
 
     def __init__(self, task_workers):
         Thread.__init__(self)
         thumbnail_task_manager.run(task_workers)
 
-        config = uvicorn.Config(app, port=8088, log_config=LOG_CONFIG)
+        config = uvicorn.Config(app, port=8088, log_config=UVICORN_LOG_CONFIG)
         self._server = uvicorn.Server(config)
 
     def run(self):
