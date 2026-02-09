@@ -95,7 +95,7 @@ class ThumbnailSerializer(object):
         }
 
     def get_enable_file_type(self):
-        enable_file_type = [IMAGE, SVG, SEADOC, RAW, EXR]
+        enable_file_type = [IMAGE, SVG, SEADOC, RAW, EXR, EPS]
         if settings.ENABLE_VIDEO_THUMBNAIL:
             enable_file_type.append(VIDEO)
         if settings.ENABLE_XMIND_THUMBNAIL:

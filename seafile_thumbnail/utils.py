@@ -6,7 +6,7 @@ import jwt
 import time
 from seafile_thumbnail.settings import JWT_PRIVATE_KEY
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
-    AUDIO, XMIND, SEADOC, RAW, EXR, TEXT_PREVIEW_EXT
+    AUDIO, XMIND, SEADOC, RAW, EXR, EPS, TEXT_PREVIEW_EXT
 from sqlalchemy import text
 from seafobj import fs_mgr, commit_mgr
 from seafile_thumbnail.db import init_db_session_class
@@ -16,7 +16,7 @@ PREVIEW_FILEEXT = {
     DOCUMENT: ('doc', 'docx', 'docxf', 'oform', 'ppt', 'pptx', 'odt', 'fodt', 'odp', 'fodp', 'odg'),
     SPREADSHEET: ('xls', 'xlsx', 'ods', 'fods'),
     SVG: ('svg',),
-    PDF: ('pdf', 'ai', 'eps'),
+    PDF: ('pdf', 'ai'),
     MARKDOWN: ('markdown', 'md'),
     VIDEO: ('mp4', 'ogv', 'webm', 'mov', 'm4v'),
     AUDIO: ('mp3', 'oga', 'ogg', 'wav', 'flac', 'opus'),
@@ -24,6 +24,7 @@ PREVIEW_FILEEXT = {
     SEADOC: ('sdoc',),
     RAW: ('cr2', 'cr3', 'nef', 'arw', 'dng'),
     EXR: ('exr',),
+    EPS: ('eps',),
 }
 ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
 LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024 # 1GB, trigger garbage collection for large file.
