@@ -9,7 +9,6 @@ from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
 from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS, UVICORN_LOG_CONFIG
 
-# Custom uvicorn log config with timestamps
 
 class ThumbnailServer(Thread):
 
