@@ -7,8 +7,7 @@ import argparse
 from app import app
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from threading import Thread
-from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS
-
+from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS, UVICORN_LOG_CONFIG
 
 
 class ThumbnailServer(Thread):
@@ -17,7 +16,7 @@ class ThumbnailServer(Thread):
         Thread.__init__(self)
         thumbnail_task_manager.run(task_workers)
 
-        config = uvicorn.Config(app, port=8088)
+        config = uvicorn.Config(app, port=8088, log_config=UVICORN_LOG_CONFIG)
         self._server = uvicorn.Server(config)
 
     def run(self):
