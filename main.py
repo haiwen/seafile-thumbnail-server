@@ -9,18 +9,21 @@ from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 from seafile_thumbnail.repo_storage_task import RepoStorageTask
 from threading import Thread
-from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS
+from seafile_thumbnail.settings import ENABLE_MULTI_STORAGE, LOG_DIR, TASK_WORKERS
 
 
 class ThumbnailServer:
 
     def __init__(self, task_workers):
         self.task_workers = task_workers
-        self.repo_storage_task_event = RepoStorageTask()
+
         
         config = uvicorn.Config(app, port=8088)
         self._uvicorn_server = uvicorn.Server(config)
         self._server_thread = None
+        if ENABLE_MULTI_STORAGE:
+            self.repo_storage_task_event = RepoStorageTask()
+        
 
     def _server_runner(self):
         """Run uvicorn server"""
@@ -33,7 +36,8 @@ class ThumbnailServer:
         # start Playwright manager
         get_playwright_manager().start()
         # start repo storage task thread
-        self.repo_storage_task_event.start()
+        if ENABLE_MULTI_STORAGE:
+            self.repo_storage_task_event.start()
 
         # run uvicorn server in a dedicated thread so we can manage other threads
         self._server_thread = Thread(target=self._server_runner, name='uvicorn-server')
