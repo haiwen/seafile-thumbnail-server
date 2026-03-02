@@ -83,3 +83,11 @@ MYSQL_DB_PWD = os.environ.get('SEAFILE_MYSQL_DB_PASSWORD', '')
 MYSQL_SEAHUB_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAHUB_DB_NAME', 'seahub_db')
 MYSQL_SEAFILE_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_SEAFILE_DB_NAME', 'seafile_db')
 MYSQL_CCNET_DB_NAME = os.environ.get('SEAFILE_MYSQL_DB_CCNET_DB_NAME', 'ccnet_db')
+
+# config for redis
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+
+# config for multi storage
+ENABLE_MULTI_STORAGE = os.environ.get('SEAF_SERVER_STORAGE_TYPE', '') == 'multiple'

@@ -1,0 +1,158 @@
+# -*- coding: utf-8 -*-
+import copy
+import json
+import logging
+
+import redis
+import time
+
+from redis.exceptions import RedisError, AuthenticationError, ConnectionError
+
+from seafile_thumbnail.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+
+logger = logging.getLogger(__name__)
+
+def get_mq(server=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD):
+    if not (server and port):
+        logging.warning('Redis has not been set up')
+        return None
+    rdp = redis.ConnectionPool(host=server, port=port,
+                               password=password, retry_on_timeout=True, decode_responses=True)
+    mq = redis.StrictRedis(connection_pool=rdp)
+    try:
+        mq.ping()
+    except Exception as e:
+        logger.error("Redis server can't be connected: host %s, port %s, error %s",
+                     server, port, e)
+        mq = None
+    return mq
+    
+
+class NoMessageException(Exception):    
+    pass
+
+
+class RedisClient(object):
+
+    def __init__(self, socket_connect_timeout=30, socket_timeout=None):
+        self._host = REDIS_HOST
+        self._port = REDIS_PORT
+        self._password = REDIS_PASSWORD
+        self.connection = None
+
+        self._init_config(socket_connect_timeout, socket_timeout)
+    
+    def _init_config(self, socket_connect_timeout, socket_timeout):
+        if self._host and self._port:
+            try:
+                self.connection = redis.Redis(
+                    host=self._host, port=self._port, password=self._password,
+                    decode_responses=True, 
+                    socket_connect_timeout=socket_connect_timeout,  
+                    socket_timeout=socket_timeout, 
+                )
+                self.connection.ping()
+                logger.info(f"Redis successfully connected: {self._host}:{self._port}")
+
+            except AuthenticationError as e:
+                logger.warning (f"Redis authentication failed: {self._host}:{self._port}, error: {str(e)}")
+                self.connection = None  
+            except ConnectionError as e:
+                logger.warning (f"Redis connection failed: {self._host}:{self._port}, error: {str(e)}")
+                self.connection = None  
+            except RedisError as e:
+                logger.warning (f"Redis error: {self._host}:{self._port}, error: {str(e)}")
+                self.connection = None
+            except Exception as e:
+                logger.exception(f"Redis initializing error: {str(e)}")
+                self.connection = None  
+        else:
+            logger.warning("Redis missing configuration")
+            self.connection = None
+
+    def get(self, key):
+        if not self.connection:
+            return
+        return self.connection.get(key)
+
+    def set(self, key, value, timeout=None):
+        if not self.connection:
+            return
+        if not timeout:
+            return self.connection.set(key, value)
+        else:
+            return self.connection.setex(key, timeout, value)
+
+    def delete(self, key):
+        if not self.connection:
+            return
+        return self.connection.delete(key)
+    
+    def get_subscriber(self, channel_name):
+        if not self.connection:
+            return
+        while True:
+            try:
+                subscriber = self.connection.pubsub(ignore_subscribe_messages=True)
+                subscriber.subscribe(channel_name)
+            except redis.AuthenticationError as e:
+                logger.critical('connect to redis auth error: %s', e)
+                raise e
+            except redis.exceptions.ConnectionError as e:
+                logger.critical('redis pubsub failed. connection failed: {}'.format(e))
+                raise e
+            except Exception as e:
+                logger.error('redis pubsub failed. {} retry after 10s'.format(e))
+                time.sleep(10)
+            else:
+                return subscriber
+
+    def setnx(self, key, value):
+        if not self.connection:
+            return
+        return self.connection.setnx(key, value)
+
+    def expire(self, name, timeout):
+        if not self.connection:
+            return
+        return self.connection.expire(name, timeout)
+
+    def publish(self, channel, message):
+        if not self.connection:
+            return
+        return self.connection.publish(channel, message)
+
+class RedisCache(object):
+
+    CACHE_NAME = 'redis'
+
+    def __init__(self):
+        self._redis_client = RedisClient()
+        
+    def get(self, key):
+        return self._redis_client.get(key)
+
+    def set(self, key, value, timeout=None):
+        return self._redis_client.set(key, value, timeout=timeout)
+
+    def delete(self, key):
+        return self._redis_client.delete(key)
+
+    def create_or_update(self, key, value):
+        try:
+            current_value = self._redis_client.get(key)
+            if current_value:
+                current_value_dict_copy = copy.deepcopy(json.loads(current_value))
+                current_value_dict_copy.update(value)
+                self._redis_client.set(key, json.dumps(current_value_dict_copy))
+            else:
+                self._redis_client.set(key, json.dumps(value))
+        except Exception as e:
+            logger.error(e)
+
+
+    def publish(self, channel, message):
+        self._redis_client.publish(channel, message)
+
+    
+redis_cache = RedisCache()
