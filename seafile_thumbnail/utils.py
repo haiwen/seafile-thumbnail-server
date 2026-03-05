@@ -205,9 +205,9 @@ def uuid_str_to_36_chars(file_uuid):
         return file_uuid
     
     
-def gen_thumbnail_access_token(file_uuid):
+def gen_thumbnail_access_token():
     access_token = jwt.encode({
-        'file_uuid': file_uuid,
+        'is_internal': True,
         'exp': int(time.time()) + 30000,
     },
         JWT_PRIVATE_KEY,
@@ -215,6 +215,16 @@ def gen_thumbnail_access_token(file_uuid):
     )
     return access_token
 
+def need_generate_thumbnail(thumbnail_info):
+    thumbnail_file = thumbnail_info['thumbnail_path'] # file in filesystem
+    if not os.path.exists(thumbnail_file):
+        return True
+    seafile_mtime = thumbnail_info.get('mtime')
+    op_system_mtime = os.path.getmtime(thumbnail_file)
+    print(f"seafile_mtime: {seafile_mtime}, op_system_mtime: {op_system_mtime} for thumbnail file: {thumbnail_file}")
+    if seafile_mtime and int(seafile_mtime)> int(op_system_mtime):
+        return True
+    return False
 
 class SeafileAPI(object):
     def __init__(self, repo_id):
@@ -280,6 +290,10 @@ class SeafileAPI(object):
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
 
         return file_id
+    
+    def gen_file_path_md5(self, repo_id, file_path):
+        return hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
+        
 
     def get_file_uuid_by_path(self, repo_id, file_path):
         file_name = os.path.basename(file_path)

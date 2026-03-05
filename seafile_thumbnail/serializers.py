@@ -90,7 +90,8 @@ class ThumbnailSerializer(object):
             'last_modified': last_modified,
             'etag': etag,
             'origin_repo_id': origin_repo_id,
-            'origin_parent_path': repo.get('path')
+            'origin_parent_path': repo.get('path'),
+            'mtime': last_modified_time,
         }
 
     def get_enable_file_type(self):
@@ -228,12 +229,8 @@ class ThumbnailSerializer(object):
         self.params['share_type'] = share_type
         thumbnail_cache.set(perm_key, share_cache_value)
         
-        
     def update_save_path(self):
         thumbnail_info = self.thumbnail_info
-        filetype = thumbnail_info.get('file_type')
-        if filetype not in [SEADOC, ]:
-            return
         file_path = thumbnail_info.get('file_path')
         file_path = normalize_file_path(file_path)
         origin_repo_id = thumbnail_info.get('origin_repo_id')
@@ -243,19 +240,10 @@ class ThumbnailSerializer(object):
             repo_id = origin_repo_id
             file_path = posixpath.join(origin_parent_path, file_path.lstrip('/'))
 
-        old_thumbnail_dir = thumbnail_info.get('thumbnail_dir')
-        file_id = thumbnail_info.get('file_id')
-        
-        
-        seafile_api = SeafileAPI(repo_id)
-        file_uuid = seafile_api.get_file_uuid_by_path(repo_id, file_path)
-        if not file_uuid:
-            return
-        thumbnail_dir = os.path.join(old_thumbnail_dir, file_uuid)
-        if not os.path.exists(thumbnail_dir):
-            os.makedirs(thumbnail_dir)
-            
-        thumbnail_file = os.path.join(thumbnail_dir, file_id)
+        thumbnail_dir = thumbnail_info.get('thumbnail_dir')
+        repo_id_path_md5 = hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
+        repo_id_path_md5 = "md5_" + repo_id_path_md5
+        thumbnail_file = os.path.join(thumbnail_dir, repo_id_path_md5)
         self.thumbnail_info.update({
             'thumbnail_path': thumbnail_file
         })

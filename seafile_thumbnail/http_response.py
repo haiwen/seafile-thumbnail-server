@@ -9,7 +9,7 @@ from urllib.parse import quote
 from seafile_thumbnail.settings import THUMBNAIL_EXTENSION
 from seafile_thumbnail.thumbnail import generate_thumbnail
 from seafile_thumbnail.constants import TEXT_CONTENT_TYPE, THUMBNAIL_CONTENT_TYPE, EMPTY_BYTES
-from seafile_thumbnail.utils import get_thumbnail_src, get_share_link_thumbnail_src
+from seafile_thumbnail.utils import get_thumbnail_src, get_share_link_thumbnail_src, need_generate_thumbnail
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ async def thumbnail_get(request, thumbnail_info):
     last_modified = thumbnail_info['last_modified']
     etag = thumbnail_info['etag']
     
-    if not os.path.exists(thumbnail_file):
+    if need_generate_thumbnail(thumbnail_info):
         task_result, status = generate_thumbnail(request, thumbnail_info)
         if status >= 500:
             logger.error(task_result)
@@ -195,7 +195,7 @@ async def share_link_thumbnail_get(request, thumbnail_info):
     etag = thumbnail_info['etag']
 
     
-    if not os.path.exists(thumbnail_file):
+    if need_generate_thumbnail(thumbnail_info):
         task_result, status = generate_thumbnail(request, thumbnail_info)
         if status != 200:
             logger.error(task_result)
