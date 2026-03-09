@@ -206,8 +206,6 @@ def create_psd_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
     finally:
         if merged_image is not None:
             merged_image.close()
-        if psd is not None:
-            psd.close()
         if f is not None:
             f.close()
         if tmp_file is not None:
