@@ -30,7 +30,8 @@ LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024 # 1GB, trigger garbage collection for 
 def generate_thumbnail_key(repo_id, file_path):
     """Generate a unique key for thumbnail based on repo_id and file_path."""
     path = normalize_file_path(file_path)
-    return hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+    hash_key = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+    return "md5_" + hash_key
 
 def gen_fileext_type_map():
     """
@@ -291,24 +292,4 @@ class SeafileAPI(object):
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
 
         return file_id
-    def get_file_uuid_by_path(self, repo_id, file_path):
-        file_name = os.path.basename(file_path)
-        parent_path = os.path.dirname(file_path)
-        parent_path = parent_path.rstrip('/') if parent_path != '/' else '/'
-        md5_repo_id_parent_path = hashlib.md5((repo_id + parent_path).encode('utf-8')).hexdigest()
-        with self.seahub_db_session_class() as seahub_db_session:
-            sql = text("""
-            SELECT uuid FROM tags_fileuuidmap
-            WHERE repo_id_parent_path_md5=:repo_id_parent_path_md5
-            AND filename=:filename
-            """)
 
-            result = seahub_db_session.execute(sql, {
-                "repo_id_parent_path_md5": md5_repo_id_parent_path,
-                "filename": file_name
-            }).first()
-            if not result:
-                return None
-            
-            uuid = uuid_str_to_36_chars(result.uuid)
-            return uuid
