@@ -527,7 +527,6 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
     access_token = gen_thumbnail_access_token()
     seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/preview/{path}?access_token={access_token}"
-    logger.info(f"seadoc preview url: {seadoc_preview_url} for thumbnail generation, path: {path}")
 
     try:
         t1 = timeit.default_timer()
