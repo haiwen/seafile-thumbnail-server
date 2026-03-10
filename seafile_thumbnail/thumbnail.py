@@ -10,7 +10,7 @@ from io import BytesIO
 from PIL import Image
 
 from seafile_thumbnail.screenshot import get_playwright_manager
-from seafile_thumbnail.utils import get_file_content_by_obj_id, normalize_file_path, SeafileAPI, \
+from seafile_thumbnail.utils import get_file_content_by_obj_id, need_generate_thumbnail, normalize_file_path, SeafileAPI, \
     gen_thumbnail_access_token, stream_file_to_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
 from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
@@ -102,7 +102,7 @@ def generate_thumbnail(request, thumbnail_info):
         
     if filetype == VIDEO and not ENABLE_VIDEO_THUMBNAIL:
         return (False, 400)
-    if os.path.exists(thumbnail_file):
+    if not need_generate_thumbnail(thumbnail_info):
         return (True, 200)
 
     if filetype == VIDEO:
@@ -522,22 +522,15 @@ def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE, file_size=0):
 
 def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_file, file_size):
     path = normalize_file_path(path)
-    seafile_api = SeafileAPI(repo_id)
-    
-    file_uuid = seafile_api.get_file_uuid_by_path(repo_id, path)
-    if not file_uuid:
-        raise Exception(f'seadoc file_uuid not found: repo_id: {repo_id}, path:{path}')
-    
     tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
-    access_token = gen_thumbnail_access_token(file_uuid)
-    seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/{file_uuid}/preview/?access_token={access_token}"
+    access_token = gen_thumbnail_access_token()
+    seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/preview/{path}?access_token={access_token}"
 
     try:
         t1 = timeit.default_timer()
         get_playwright_manager().screenshot_from_url(seadoc_preview_url, tmp_png_path, request=request, access_token=access_token)
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
-        remove_thumbnail_by_dir(file_uuid)
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True, path=path)
         os.unlink(tmp_png_path)
         return

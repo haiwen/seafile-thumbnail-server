@@ -27,7 +27,11 @@ PREVIEW_FILEEXT = {
 ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
 LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024 # 1GB, trigger garbage collection for large file.
 
-
+def generate_thumbnail_key(repo_id, file_path):
+    """Generate a unique key for thumbnail based on repo_id and file_path."""
+    path = normalize_file_path(file_path)
+    hash_key = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+    return "md5_" + hash_key
 
 def gen_fileext_type_map():
     """
@@ -191,7 +195,6 @@ def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
             gc.collect()
 
         return total_written
-        return total_written
     except Exception as e:
         if os.path.exists(dest_path):
             os.unlink(dest_path)
@@ -205,9 +208,9 @@ def uuid_str_to_36_chars(file_uuid):
         return file_uuid
     
     
-def gen_thumbnail_access_token(file_uuid):
+def gen_thumbnail_access_token():
     access_token = jwt.encode({
-        'file_uuid': file_uuid,
+        'is_internal': True,
         'exp': int(time.time()) + 30000,
     },
         JWT_PRIVATE_KEY,
@@ -215,6 +218,15 @@ def gen_thumbnail_access_token(file_uuid):
     )
     return access_token
 
+def need_generate_thumbnail(thumbnail_info):
+    thumbnail_file = thumbnail_info['thumbnail_path'] # file in filesystem
+    if not os.path.exists(thumbnail_file):
+        return True
+    seafile_mtime = thumbnail_info.get('mtime')
+    op_system_mtime = os.path.getmtime(thumbnail_file)
+    if seafile_mtime and int(seafile_mtime)> int(op_system_mtime):
+        return True
+    return False
 
 class SeafileAPI(object):
     def __init__(self, repo_id):
@@ -281,24 +293,3 @@ class SeafileAPI(object):
 
         return file_id
 
-    def get_file_uuid_by_path(self, repo_id, file_path):
-        file_name = os.path.basename(file_path)
-        parent_path = os.path.dirname(file_path)
-        parent_path = parent_path.rstrip('/') if parent_path != '/' else '/'
-        md5_repo_id_parent_path = hashlib.md5((repo_id + parent_path).encode('utf-8')).hexdigest()
-        with self.seahub_db_session_class() as seahub_db_session:
-            sql = text("""
-            SELECT uuid FROM tags_fileuuidmap
-            WHERE repo_id_parent_path_md5=:repo_id_parent_path_md5
-            AND filename=:filename
-            """)
-
-            result = seahub_db_session.execute(sql, {
-                "repo_id_parent_path_md5": md5_repo_id_parent_path,
-                "filename": file_name
-            }).first()
-            if not result:
-                return None
-            
-            uuid = uuid_str_to_36_chars(result.uuid)
-            return uuid
