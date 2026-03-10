@@ -27,7 +27,10 @@ PREVIEW_FILEEXT = {
 ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
 LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024 # 1GB, trigger garbage collection for large file.
 
-
+def generate_thumbnail_key(repo_id, file_path):
+    """Generate a unique key for thumbnail based on repo_id and file_path."""
+    path = normalize_file_path(file_path)
+    return hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
 
 def gen_fileext_type_map():
     """
@@ -191,7 +194,6 @@ def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
             gc.collect()
 
         return total_written
-        return total_written
     except Exception as e:
         if os.path.exists(dest_path):
             os.unlink(dest_path)
@@ -221,7 +223,6 @@ def need_generate_thumbnail(thumbnail_info):
         return True
     seafile_mtime = thumbnail_info.get('mtime')
     op_system_mtime = os.path.getmtime(thumbnail_file)
-    print(f"seafile_mtime: {seafile_mtime}, op_system_mtime: {op_system_mtime} for thumbnail file: {thumbnail_file}")
     if seafile_mtime and int(seafile_mtime)> int(op_system_mtime):
         return True
     return False
@@ -290,11 +291,6 @@ class SeafileAPI(object):
             file_id = fs_mgr.get_file_id_by_path(self.repo_id, 1, root_id, file_path)
 
         return file_id
-    
-    def gen_file_path_md5(self, repo_id, file_path):
-        return hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
-        
-
     def get_file_uuid_by_path(self, repo_id, file_path):
         file_name = os.path.basename(file_path)
         parent_path = os.path.dirname(file_path)

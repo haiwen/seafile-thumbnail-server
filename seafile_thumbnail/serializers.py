@@ -7,7 +7,7 @@ from email.utils import formatdate
 
 from seafile_thumbnail import settings
 from seafile_thumbnail.constants import IMAGE, VIDEO, XMIND, PDF, SVG, SEADOC
-from seafile_thumbnail.utils import get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
+from seafile_thumbnail.utils import generate_thumbnail_key, get_file_type_and_ext, normalize_dir_path, get_real_path_by_fs_and_req_path, \
     normalize_share_cache_key, normalize_file_path
 from seafile_thumbnail.seahub_api import jwt_permission_check, jwt_share_link_permission_check
 from seafile_thumbnail.cache import thumbnail_cache
@@ -241,9 +241,8 @@ class ThumbnailSerializer(object):
             file_path = posixpath.join(origin_parent_path, file_path.lstrip('/'))
 
         thumbnail_dir = thumbnail_info.get('thumbnail_dir')
-        repo_id_path_md5 = hashlib.md5((repo_id + file_path).encode('utf-8')).hexdigest()
-        repo_id_path_md5 = "md5_" + repo_id_path_md5
-        thumbnail_file = os.path.join(thumbnail_dir, repo_id_path_md5)
+        thumbnail_key = generate_thumbnail_key(repo_id, file_path)
+        thumbnail_file = os.path.join(thumbnail_dir, thumbnail_key)
         self.thumbnail_info.update({
             'thumbnail_path': thumbnail_file
         })
