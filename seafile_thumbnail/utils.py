@@ -1,6 +1,5 @@
 import os
 import hashlib
-import gc
 import posixpath
 import uuid
 import jwt
@@ -187,10 +186,6 @@ def stream_file_to_path(repo_id, obj_id, dest_path, chunk_size=8*1024*1024):
                 dest_file.write(chunk)
                 total_written += len(chunk)
                 del chunk
-        if total_written > LARGE_FILE_THRESHOLD:
-            gc.collect()
-
-        return total_written
         return total_written
     except Exception as e:
         if os.path.exists(dest_path):

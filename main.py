@@ -11,6 +11,7 @@ from seafile_thumbnail.repo_storage_task import RepoStorageTask
 from threading import Thread
 from seafile_thumbnail.settings import ENABLE_MULTI_STORAGE, LOG_DIR, TASK_WORKERS
 
+from seafile_thumbnail.settings import LOG_DIR, TASK_WORKERS, UVICORN_LOG_CONFIG
 
 class ThumbnailServer:
 
@@ -18,7 +19,7 @@ class ThumbnailServer:
         self.task_workers = task_workers
 
         
-        config = uvicorn.Config(app, port=8088)
+        config = uvicorn.Config(app, port=8088, log_config=UVICORN_LOG_CONFIG)
         self._uvicorn_server = uvicorn.Server(config)
         self._server_thread = None
         if ENABLE_MULTI_STORAGE:
