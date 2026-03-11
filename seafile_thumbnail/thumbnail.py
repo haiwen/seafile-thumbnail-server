@@ -149,6 +149,9 @@ def generate_thumbnail(request, thumbnail_info):
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
+    
+    task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id, path,
+                                                          thumbnail_file, size)
 
     if status != 200:
         return (task_id, status)
