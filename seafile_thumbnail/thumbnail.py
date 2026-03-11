@@ -128,7 +128,7 @@ def generate_thumbnail(request, thumbnail_info):
     # image thumbnails
     if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
         return ('The image size exceeds the limit', 400)
-    if fileext.lower() == 'psd':
+    if fileext.lower() in ('psd', 'psb'):
         task_id, status = thumbnail_task_manager.add_pdf_or_psd_create_task(create_psd_thumbnails, repo_id, file_id, path,
                                                              size, thumbnail_file, file_size)
         if status != 200:
@@ -149,11 +149,10 @@ def generate_thumbnail(request, thumbnail_info):
         if status != 200:
             return (task_id, status)
         return (task_id, 200)
-
+    
     task_id, status = thumbnail_task_manager.add_image_creat_task(create_image_thumbnail, repo_id, file_id, path,
                                                           thumbnail_file, size)
-    
-    
+
     if status != 200:
         return (task_id, status)
     return (task_id, 200)
@@ -432,8 +431,6 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
     return
-        
-
 def _create_thumbnail_common(fp, thumbnail_file, size, fix_width=False, path=None):
     """Common logic for creating image thumbnail.
 
