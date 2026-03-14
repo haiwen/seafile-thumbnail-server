@@ -13,7 +13,7 @@ from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.utils import get_file_content_by_obj_id, need_generate_thumbnail, normalize_file_path, SeafileAPI, \
     gen_thumbnail_access_token, stream_file_to_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
-from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_ROOT, \
+from seafile_thumbnail.settings import ENABLE_VIDEO_THUMBNAIL, THUMBNAIL_IMAGE_SIZE_LIMIT, THUMBNAIL_PDF_SIZE_LIMIT, THUMBNAIL_ROOT, \
     THUMBNAIL_IMAGE_ORIGINAL_SIZE_LIMIT, THUMBNAIL_EXTENSION, THUMBNAIL_VIDEO_FRAME_TIME, SAFETY_MARGIN, \
     INNER_SEAHUB_SERVICE_URL
 from seafile_thumbnail.thumbnail_task_manager import thumbnail_task_manager
@@ -32,7 +32,7 @@ MAX_PAGE_AREA = 8000000  # 8 million square points
 LARGE_WIDTH_HEIGHT_THRESHOLD = 2000
 LARGE_AREA_THRESHOLD = 3000000
 # PDF size threshold for detailed page size checking (bytes)
-LARGE_PDF_SIZE_THRESHOLD = 50 * 1024 * 1024  # 50MB
+LARGE_PDF_SIZE_THRESHOLD = THUMBNAIL_PDF_SIZE_LIMIT * 1024 * 1024  # 50MB
 
 
 def get_rotated_image(image):
