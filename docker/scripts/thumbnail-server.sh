@@ -18,7 +18,7 @@ function set_env() {
         export LD_PRELOAD="$JEMALLOC_LIB"
     fi
 
-    export SEAFILE_CONF_DIR=/opt/seafile/seafile-data
+    export SEAFILE_DATA_DIR=/opt/seafile/seafile-data
     export SEAFILE_CENTRAL_CONF_DIR=/opt/seafile/conf
     export CONF_DIR=/opt/seafile/conf
     export LOG_DIR=/opt/seafile/logs

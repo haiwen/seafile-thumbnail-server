@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH=/opt/seafile/seafile/lib/
 export PYTHONPATH=/opt/seafile/seafile/lib/python3/site-packages/:/usr/lib/python3.12/dist-packages:/usr/lib/python3.12/site-packages:/usr/local/lib/python3.12/dist-packages:/usr/local/lib/python3.12/site-packages
 export PATH=/opt/seafile/seafile/bin/:$PATH
 
-export SEAFILE_CONF_DIR=/opt/seafile/seafile-data
+export SEAFILE_DATA_DIR=/opt/seafile/seafile-data
 export SEAFILE_CENTRAL_CONF_DIR=/opt/seafile/conf
 export CONF_DIR=/opt/seafile/conf
 export LOG_DIR=/opt/seafile/logs
