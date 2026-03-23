@@ -2,7 +2,7 @@
 
 version=$1
 
-docker build -t docker.seafile.top/seafileltd/thumbnail-server:${version}-testing ./
+docker build --pull --build-arg server_version=$version -t docker.seafile.top/seafileltd/thumbnail-server:${version}-testing ./
 
 docker tag docker.seafile.top/seafileltd/thumbnail-server:${version}-testing seafileltd/thumbnail-server:${version}-testing
 
