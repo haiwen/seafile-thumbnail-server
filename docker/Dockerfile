@@ -22,7 +22,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y tzdata \
     libjemalloc2
 
 # set python3 global
-RUN apt-get install -y python3 python3-pip python3-setuptools && \
+RUN apt-get install -y python3 python3-pip python3-setuptools python3-rados && \
     rm /usr/lib/python3.12/EXTERNALLY-MANAGED && \
     rm -f /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
 
