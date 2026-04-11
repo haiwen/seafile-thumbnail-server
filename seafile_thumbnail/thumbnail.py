@@ -529,12 +529,14 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True, path=path)
-        os.unlink(tmp_png_path)
         return
     except Exception as e:
         logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}, seadoc_preview_url: {seadoc_preview_url}")
-        os.unlink(tmp_png_path)
         raise e
+    finally:
+        if os.path.exists(tmp_png_path):
+            os.unlink(tmp_png_path)
+    
 
 
 def remove_thumbnail_by_dir(file_uuid):
