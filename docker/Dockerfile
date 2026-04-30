@@ -34,9 +34,9 @@ COPY seafobj/requirements.txt /opt/seafile/thumbnail-server/seafobj-requirements
 COPY seafobj/seafobj /opt/seafile/seafile/lib/python3/site-packages/seafobj
 COPY seafobj/objwrapper /opt/seafile/seafile/lib/python3/site-packages/objwrapper
 
-RUN pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/requirements.txt && \
-    pip3 install --no-cache-dir -r /opt/seafile/thumbnail-server/seafobj-requirements.txt && \ 
-    pip3 install --no-cache-dir chardet pymysql sqlalchemy redis pylibmc oss2 lxml
+RUN pip3 install --no-cache-dir --ignore-installed -r /opt/seafile/thumbnail-server/requirements.txt && \
+    pip3 install --no-cache-dir --ignore-installed -r /opt/seafile/thumbnail-server/seafobj-requirements.txt && \ 
+    pip3 install --no-cache-dir --ignore-installed chardet pymysql sqlalchemy redis pylibmc oss2 lxml
 
 # scripts
 COPY scripts /scripts
