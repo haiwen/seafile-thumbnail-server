@@ -26,8 +26,13 @@ RUN apt-get install -y python3 python3-pip python3-setuptools python3-rados && \
     rm /usr/lib/python3.12/EXTERNALLY-MANAGED && \
     rm -f /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
 
+# set up the repository for nodejs 22 and npm
+RUN curl -sL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+RUN apt-get install -y nodejs
+
 RUN apt-get install -y fonts-wqy-microhei fonts-wqy-zenhei fonts-noto-cjk-extra fontconfig &&\
-    pip3 install --no-cache-dir --ignore-installed playwright && \
+    pip3 install --no-cache-dir --ignore-installed playwright==1.58.0 && \
+    python -m playwright install --with-deps && \
     playwright install chromium
 
 # thumbnail-server
