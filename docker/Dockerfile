@@ -26,6 +26,10 @@ RUN apt-get install -y python3 python3-pip python3-setuptools python3-rados && \
     rm /usr/lib/python3.12/EXTERNALLY-MANAGED && \
     rm -f /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
 
+RUN apt-get install -y fonts-wqy-microhei fonts-wqy-zenhei fonts-noto-cjk-extra fontconfig &&\
+    pip3 install --no-cache-dir --ignore-installed playwright && \
+    playwright install chromium
+
 # thumbnail-server
 RUN mkdir -p /opt/seafile 
 WORKDIR /opt/seafile
