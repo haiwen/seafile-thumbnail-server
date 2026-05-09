@@ -32,6 +32,11 @@ function set_env() {
     export SITE_ROOT=${SITE_ROOT:-/}
     export NON_ROOT=${NON_ROOT:-false}
     export SEAFILE_LOG_TO_STDOUT=${SEAFILE_LOG_TO_STDOUT:-false}
+    export ENABLE_MULTI_STORAGE=${ENABLE_MULTI_STORAGE:-}
+
+    export REDIS_HOST=${REDIS_HOST:-redis}
+    export REDIS_PORT=${REDIS_PORT:-6379}
+    export REDIS_PASSWORD=${REDIS_PASSWORD:-}
 }
 
 function run_python_wth_env() {
