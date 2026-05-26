@@ -24,6 +24,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import pillow_avif
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 XMIND_IMAGE_SIZE = 1024
