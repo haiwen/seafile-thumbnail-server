@@ -1,5 +1,6 @@
 requests==2.32.*
 pillow_heif==1.2.*
+pillow-avif-plugin==1.5.*
 psd-tools==1.14.*
 uvicorn==0.41.*
 pillow==12.2.*
