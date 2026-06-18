@@ -10,6 +10,7 @@ from io import BytesIO
 from PIL import Image
 
 from seafile_thumbnail.screenshot import get_playwright_manager
+from seafile_thumbnail.errors import FileInvalidError
 from seafile_thumbnail.utils import get_file_content_by_obj_id, need_generate_thumbnail, normalize_file_path, SeafileAPI, \
     gen_thumbnail_access_token, stream_file_to_path
 from seafile_thumbnail.constants import VIDEO, PDF, XMIND, SVG, SEADOC
@@ -38,7 +39,6 @@ LARGE_WIDTH_HEIGHT_THRESHOLD = 2000
 LARGE_AREA_THRESHOLD = 3000000
 # PDF size threshold for detailed page size checking (bytes)
 LARGE_PDF_SIZE_THRESHOLD = THUMBNAIL_PDF_SIZE_LIMIT * 1024 * 1024  # 50MB
-
 
 def get_rotated_image(image):
     # get image's exif info
@@ -309,9 +309,10 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
     For small files, load into memory for better performance.
     """
     t1 = timeit.default_timer()
-    tmp_prefix = str(os.path.join(tempfile.gettempdir(), '%s' % file_id[:8]))
+    tmp_dir = tempfile.mkdtemp(prefix=f'{file_id}_')
+    tmp_prefix = os.path.join(tmp_dir, 'page')
     tmp_png_path = tmp_prefix + '.png'  # pdftoppm outputs to this path
-    tmp_pdf_path = os.path.join(tempfile.gettempdir(), file_id + '.pdf')
+    tmp_pdf_path = os.path.join(tmp_dir, 'source.pdf')
     pdf_input = None
     size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
     
@@ -342,6 +343,8 @@ def create_pdf_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             os.unlink(tmp_pdf_path)
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
+        if os.path.exists(tmp_dir):
+            os.rmdir(tmp_dir)
     return
 
 
@@ -351,8 +354,9 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0)
     For large files (> THUMBNAIL_IMAGE_SIZE_LIMIT), use streaming to avoid memory issues.
     For small files, load into memory for better performance.
     """
-    tmp_image_path = os.path.join(tempfile.gettempdir(), file_id + '.png')
-    tmp_video_path = os.path.join(tempfile.gettempdir(), file_id + '.mp4')
+    tmp_dir = tempfile.mkdtemp(prefix=f'{file_id}_')
+    tmp_image_path = os.path.join(tmp_dir, 'thumbnail.png')
+    tmp_video_path = os.path.join(tmp_dir, 'source.mp4')
     size_limit_bytes = THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 * 1024
     
     try:
@@ -360,12 +364,12 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0)
             # Large file: use streaming to avoid memory issues
             bytes_written = stream_file_to_path(repo_id, file_id, tmp_video_path)
             if bytes_written == 0:
-                raise Exception('Video file is empty')
+                raise FileInvalidError('Video file is empty')
         else:
             # Small file: load into memory for better performance
             video_content = get_file_content_by_obj_id(repo_id, file_id)
             if not video_content:
-                raise Exception('Video file is empty')
+                raise FileInvalidError('Video file is empty')
             with open(tmp_video_path, 'wb') as f:
                 f.write(video_content)
             del video_content
@@ -373,28 +377,36 @@ def create_video_thumbnails(repo_id, file_id, size, thumbnail_file, file_size=0)
         # get video duration
         duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
                        '-of', 'default=noprint_wrappers=1:nokey=1', tmp_video_path]
-        duration = float(subprocess.check_output(duration_cmd).decode().strip())
+        try:
+            duration = float(subprocess.check_output(duration_cmd, stderr=subprocess.STDOUT).decode().strip())
+        except subprocess.CalledProcessError as e:
+            output = e.output.decode(errors='replace').strip() if e.output else str(e)
+            raise FileInvalidError(f'ffprobe failed: {output}')
         if THUMBNAIL_VIDEO_FRAME_TIME <= duration - SAFETY_MARGIN:
             frame_time = THUMBNAIL_VIDEO_FRAME_TIME
         else:
             frame_time = duration / 2
-        subprocess.check_output(['ffmpeg', '-i', tmp_video_path, '-ss', str(frame_time), 
-                               '-vframes', '1', '-nostdin', tmp_image_path])
+        ffmpeg_cmd = ['ffmpeg', '-i', tmp_video_path, '-ss', str(frame_time), 
+                      '-vframes', '1', '-nostdin', tmp_image_path]
+        try:
+            subprocess.check_output(ffmpeg_cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            output = e.output.decode(errors='replace').strip() if e.output else str(e)
+            raise FileInvalidError(f'ffmpeg failed: {output}')
         
         if os.path.exists(tmp_image_path) and os.path.getsize(tmp_image_path) > 0:
             _create_thumbnail_common(tmp_image_path, thumbnail_file, size)
             return True
         else:
-            raise Exception("Failed to generate video thumbnail")
-            
-    except Exception as e:
-        raise e
+            raise FileInvalidError('The thumbnail image generated by ffmpeg is empty')
     finally:
         # Cleanup temp files
         if tmp_image_path and os.path.exists(tmp_image_path):
             os.unlink(tmp_image_path)
         if tmp_video_path and os.path.exists(tmp_video_path):
             os.remove(tmp_video_path)
+        if tmp_dir and os.path.exists(tmp_dir):
+            os.rmdir(tmp_dir)
     
 
 def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_size):
@@ -536,8 +548,11 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True, path=path)
         return
     except Exception as e:
-        logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}, seadoc_preview_url: {seadoc_preview_url}")
-        raise e
+        if isinstance(e, FileInvalidError):
+            logger.warning(f"File invalid for SDOC thumbnail for {path}, seadoc_preview_url: {seadoc_preview_url}")
+        else:
+            logger.error(f"Failed to generate SDOC thumbnail for {path}: {str(e)}, seadoc_preview_url: {seadoc_preview_url}")
+        raise
     finally:
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)

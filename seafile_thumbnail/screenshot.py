@@ -12,10 +12,27 @@ from playwright.async_api import (
     Browser,
     BrowserContext,
     Page,
-    Error as PlaywrightError
+    Error as PlaywrightError,
+    TimeoutError as PlaywrightTimeoutError,
 )
 
+from seafile_thumbnail.errors import FileInvalidError
+
 logger = logging.getLogger(__name__)
+
+
+def _normalize_screenshot_error(error):
+    if isinstance(error, FileInvalidError):
+        return error
+
+    error_msg = str(error)
+    if isinstance(error, PlaywrightTimeoutError) and 'waiting for locator' in error_msg:
+        return FileInvalidError(error_msg)
+
+    if isinstance(error, PlaywrightError) and 'has no valid size' in error_msg:
+        return FileInvalidError(error_msg)
+
+    return error
 
 
 class PlaywrightManager:
@@ -112,7 +129,8 @@ class PlaywrightManager:
         try:
             return fut.result(timeout=self.page_timeout / 1000)  # Overall task timeout
         except Exception as e:
-            logger.error(f"Screenshot failed: {e}")
+            if not isinstance(e, FileInvalidError):
+                logger.error(f"Screenshot failed: {e}")
             raise
     
     # ------------------------------ Internal core logic ------------------------------
@@ -231,8 +249,12 @@ class PlaywrightManager:
                 logger.debug(f"Screenshot success: {task['save_path']}")
         
         except Exception as e:
-            fut.set_exception(e)
-            logger.error(f"Task failed: {e}", exc_info=True)
+            normalized_error = _normalize_screenshot_error(e)
+            fut.set_exception(normalized_error)
+            if isinstance(normalized_error, FileInvalidError):
+                logger.warning(f"Task failed: {normalized_error}")
+            else:
+                logger.error(f"Task failed: {normalized_error}", exc_info=True)
         finally:
             if page:
                 await page.close()
@@ -272,6 +294,8 @@ class PlaywrightManager:
         
         response = await page.goto(url, wait_until="domcontentloaded", timeout=30_000)  # Navigation timeout 30s
         if response and response.status >= 400:
+            if response.status < 500:
+                raise FileInvalidError(f"URL failed: {url} (status: {response.status})")
             raise PlaywrightError(f"URL failed: {url} (status: {response.status})")
         
         # Stop immediately after key resource loading, no wait for networkidle
