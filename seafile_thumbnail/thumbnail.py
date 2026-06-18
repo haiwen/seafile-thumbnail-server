@@ -539,7 +539,8 @@ def extract_xmind_image(repo_id, file_id, size=XMIND_IMAGE_SIZE, file_size=0):
 
 def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_file, file_size):
     path = normalize_file_path(path)
-    tmp_png_path = os.path.join(tempfile.gettempdir(), f"{file_id}.png")
+    tmp_dir = tempfile.mkdtemp(prefix=f'{file_id}_')
+    tmp_png_path = os.path.join(tmp_dir, 'screenshot.png')
     access_token = gen_thumbnail_access_token()
     seadoc_preview_url = f"{INNER_SEAHUB_SERVICE_URL.rstrip('/')}/repo/{repo_id}/sdoc/preview/{path}?access_token={access_token}"
 
@@ -548,6 +549,8 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
         get_playwright_manager().screenshot_from_url(seadoc_preview_url, tmp_png_path, request=request, access_token=access_token)
         t2 = timeit.default_timer()
         logger.debug(f"Convert SDOC [{path}] to PNG takes: {t2 - t1:.2f}s")
+        if not os.path.exists(tmp_png_path) or os.path.getsize(tmp_png_path) == 0:
+            raise FileInvalidError('The screenshot generated for SDOC is empty')
         _create_thumbnail_common(tmp_png_path, thumbnail_file, size, fix_width=True, path=path)
         return
     except Exception as e:
@@ -559,6 +562,8 @@ def create_seadoc_thumbnail(request, repo_id, file_id, path, size, thumbnail_fil
     finally:
         if os.path.exists(tmp_png_path):
             os.unlink(tmp_png_path)
+        if os.path.exists(tmp_dir):
+            os.rmdir(tmp_dir)
     
 
 
