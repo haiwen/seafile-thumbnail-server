@@ -8,6 +8,32 @@ from seafile_thumbnail.settings import INNER_SEAHUB_SERVICE_URL, JWT_PRIVATE_KEY
 logger = logging.getLogger(__name__)
 
 
+def _get_response_error_message(response):
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            for key in ('error_msg', 'error', 'detail', 'message'):
+                value = payload.get(key)
+                if value:
+                    return str(value)
+    except ValueError:
+        pass
+
+    response_text = response.text.strip()
+    if response_text:
+        return response_text
+    return f'HTTP {response.status_code}'
+
+
+def _log_permission_check_failure(response):
+    error_msg = _get_response_error_message(response)
+    log_msg = f'Permission check failed: status={response.status_code}, error={error_msg}'
+    if response.status_code in [403, 404, 400]:
+        logger.warning(log_msg)
+    else:
+        logger.error(log_msg)
+
+
 def get_jwt_url(repo_id):
     jwt_url = '%s/api/v2.1/internal/repos/%s/check-thumbnail/' % (
         INNER_SEAHUB_SERVICE_URL.rstrip('/'), repo_id)
@@ -40,8 +66,7 @@ def jwt_permission_check(session_key, repo_id, path, auth_token=None):
     try:
         response = requests.post(url, data={'path': path}, headers=headers, verify=False)
         if response.status_code != 200:
-            error_msg = 'Internal Server Error'
-            logger.error(error_msg)
+            _log_permission_check_failure(response)
             return False
 
         res = json.loads(response.text)
@@ -69,8 +94,7 @@ def jwt_share_link_permission_check(session_key, token):
     try:
         response = requests.post(jwt_url, data={'token': token}, headers=headers, verify=False)
         if response.status_code != 200:
-            error_msg = 'Internal Server Error'
-            logger.error(error_msg)
+            _log_permission_check_failure(response)
             return False, None, None, None
 
         res = json.loads(response.text)

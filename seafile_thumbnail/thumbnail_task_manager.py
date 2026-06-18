@@ -6,6 +6,7 @@ import uuid
 import os
 import hashlib
 
+from seafile_thumbnail.errors import FileInvalidError
 from seafile_thumbnail.settings import TASK_WORKERS
 
 logger = logging.getLogger(__name__)
@@ -308,7 +309,8 @@ class ThumbnailManager(object):
                     self._set_result(pdf_id, 'error_' + str(e.args[0]))
                 else:
                     self._set_result(pdf_id, 'error_' + str(e))
-                logger.exception('Failed to handle task %s, error: %s \n' % (task_info, e))
+                log_func = logger.warning if isinstance(e, FileInvalidError) else logger.exception
+                log_func('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(pdf_id, None)
             finally:
                 self.tasks_map.pop(pdf_id, None)
@@ -344,7 +346,8 @@ class ThumbnailManager(object):
                     self._set_result(video_id, 'error_' + str(e.args[0]))
                 else:
                     self._set_result(video_id, 'error_' + str(e))
-                logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                log_func = logger.warning if isinstance(e, FileInvalidError) else logger.error
+                log_func('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(video_id, None)
             finally:
                 self.tasks_map.pop(video_id, None)
@@ -380,7 +383,8 @@ class ThumbnailManager(object):
                     self._set_result(seadoc_id, 'error_' + str(e.args[0]))
                 else:
                     self._set_result(seadoc_id, 'error_' + str(e))
-                logger.error('Failed to handle task %s, error: %s \n' % (task_info, e))
+                log_func = logger.warning if isinstance(e, FileInvalidError) else logger.error
+                log_func('Failed to handle task %s, error: %s \n' % (task_info, e))
                 self.current_task_info.pop(seadoc_id, None)
             finally:
                 self.tasks_map.pop(seadoc_id, None)
