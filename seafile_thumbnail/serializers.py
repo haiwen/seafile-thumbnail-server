@@ -75,6 +75,9 @@ class ThumbnailSerializer(object):
             os.makedirs(thumbnail_dir)
 
         file_obj = seafile_api.get_dirent_by_path(repo, file_path)
+        if not file_obj:
+            err_msg = "File does not exist."
+            raise AssertionError(404, err_msg)
         file_size = file_obj.size
         last_modified_time = file_obj.mtime
         last_modified = formatdate(int(last_modified_time), usegmt=True)
