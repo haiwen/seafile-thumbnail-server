@@ -28,7 +28,7 @@ class HTTPRequest(object):
         self.headers = headers
 
     def parse_cookies(self):
-        cookies = ()
+        cookies = {}
         if self.headers.get('cookie'):
             cookie_string = self.headers.get('cookie')[0]
             s = SimpleCookie(cookie_string)
