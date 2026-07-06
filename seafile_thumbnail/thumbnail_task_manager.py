@@ -272,7 +272,8 @@ class ThumbnailManager(object):
                     self._set_result(image_id, 'error_' + str(e.args[0]))
                 else:
                     self._set_result(image_id, 'error_' + str(e))
-                logger.exception('Failed to handle task %s, error: %s \n' % (task_info, e))
+                log_func = logger.warning if isinstance(e, FileInvalidError) else logger.exception
+                log_func('Failed to handle task %s, error: %s \n' % (task_info, e))
                 
                 self.current_task_info.pop(image_id, None)
             finally:

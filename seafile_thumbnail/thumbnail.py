@@ -7,7 +7,7 @@ import tempfile
 import timeit
 import zipfile
 from io import BytesIO
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from seafile_thumbnail.screenshot import get_playwright_manager
 from seafile_thumbnail.errors import FileInvalidError
@@ -169,9 +169,15 @@ def create_image_thumbnail(repo_id, file_id, thumbnail_file, size):
     try:
         image_file = get_file_content_by_obj_id(repo_id, file_id)
         if image_file == b'':
-            raise Exception('Image file is empty')
+            raise FileInvalidError('Image file is empty')
         f = BytesIO(image_file)
-        _create_thumbnail_common(f, thumbnail_file, size)
+        try:
+            _create_thumbnail_common(f, thumbnail_file, size)
+        except UnidentifiedImageError as e:
+            raise FileInvalidError(str(e))
+        except OSError as e:
+            # Pillow uses OSError for truncated or otherwise unreadable images.
+            raise FileInvalidError(str(e))
     finally:
         if f is not None:
             f.close()
