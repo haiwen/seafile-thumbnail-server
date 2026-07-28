@@ -6,7 +6,7 @@ import jwt
 import time
 from seafile_thumbnail.settings import JWT_PRIVATE_KEY
 from seafile_thumbnail.constants import TEXT, IMAGE, DOCUMENT, SPREADSHEET, SVG, PDF, MARKDOWN, VIDEO, \
-    AUDIO, XMIND, SEADOC, TEXT_PREVIEW_EXT
+    AUDIO, XMIND, SEADOC, EPUB, TEXT_PREVIEW_EXT
 from sqlalchemy import text
 from seafobj import fs_mgr, commit_mgr
 from seafile_thumbnail.db import init_db_session_class
@@ -17,6 +17,7 @@ PREVIEW_FILEEXT = {
     SPREADSHEET: ('xls', 'xlsx', 'ods', 'fods'),
     SVG: ('svg',),
     PDF: ('pdf', 'ai'),
+    EPUB: ('epub',),
     MARKDOWN: ('markdown', 'md'),
     VIDEO: ('mp4', 'ogv', 'webm', 'mov', 'm4v'),
     AUDIO: ('mp3', 'oga', 'ogg', 'wav', 'flac', 'opus'),
