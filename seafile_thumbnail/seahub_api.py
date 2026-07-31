@@ -28,7 +28,7 @@ def _get_response_error_message(response):
 def _log_permission_check_failure(response):
     error_msg = _get_response_error_message(response)
     log_msg = f'Permission check failed: status={response.status_code}, error={error_msg}'
-    if response.status_code in [403, 404, 400]:
+    if response.status_code in [403, 404, 400, 401]:
         logger.warning(log_msg)
     else:
         logger.error(log_msg)
