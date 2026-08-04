@@ -105,6 +105,21 @@ class ThumbnailManager(object):
         self.image_queue.put(task_id)
         self.tasks_map[task_id] = task
         return task_id, 200
+
+    def add_epub_create_task(self, func, repo_id, file_id, path, thumbnail_file, size):
+        # EPUB just extracts the cover image from ZIP, use image_queue
+        if self.image_queue.full():
+            logger.warning('thumbnail server busy, queue size: %d, current tasks: %s, threads is_alive: %s'
+                           % (self.image_queue.qsize(), self.current_task_info,
+                              self.threads_is_alive()))
+            return ('thumbnail server busy.', 503)
+        task_id = hashlib.md5((repo_id + path).encode('utf-8')).hexdigest()
+        if task_id in self.image_queue.queue:
+            return (task_id, 200)
+        task = (func, (repo_id, file_id, thumbnail_file, size))
+        self.image_queue.put(task_id)
+        self.tasks_map[task_id] = task
+        return task_id, 200
     
     def add_seadoc_create_task(self, func, request, repo_id, file_id, path, size, thumbnail_file, file_size):
         if self.seadoc_queue.full():
