@@ -46,6 +46,8 @@ EPUB_METADATA_SIZE_LIMIT = 1024 * 1024
 EPUB_COVER_SIZE_LIMIT = 20 * 1024 * 1024
 EPUB_MAX_ENTRIES = 10000
 
+EPUB_ARCHIVE_SIZE_LIMIT = 50 * 1024 * 1024
+
 
 def _check_epub_entry_count(epub_file):
     epub_file.seek(0, os.SEEK_END)
@@ -239,7 +241,7 @@ def generate_thumbnail(request, thumbnail_info):
                 return (task_id, status)
         return (task_id, 200)
     if filetype == EPUB:
-        if file_size > THUMBNAIL_IMAGE_SIZE_LIMIT * 1024 ** 2:
+        if file_size > EPUB_ARCHIVE_SIZE_LIMIT:
             return ('The EPUB size exceeds the limit', 400)
         task_id, status = thumbnail_task_manager.add_epub_create_task(
             create_epub_thumbnail, repo_id, file_id, path, thumbnail_file, size)
