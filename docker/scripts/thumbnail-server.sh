@@ -53,23 +53,15 @@ function start_server() {
 
     cd /opt/seafile/thumbnail-server/
 
-    if [[ "${SEAFILE_LOG_TO_STDOUT}" == "true" ]]; then
-        if [[ "${NON_ROOT}" == "true" ]]; then
-            su seafile -c "/usr/bin/python3 main.py &"
-        else
-            /usr/bin/python3 main.py &
-        fi
+    if [[ "${NON_ROOT}" == "true" ]]; then
+        su seafile -c "/usr/bin/python3 main.py &"
     else
-        if [[ "${NON_ROOT}" == "true" ]]; then
-            su seafile -c "/usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &"
-        else
-            /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
-        fi
+        /usr/bin/python3 main.py &
     fi
 
     sleep 0.2
 
-    /scripts/monitor.sh &>> /opt/seafile/logs/monitor.log &
+    /scripts/monitor.sh >> /opt/seafile/logs/monitor.log 2>&1 &
 
     echo "thumbnail-server started"
     echo
