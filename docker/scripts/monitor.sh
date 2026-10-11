@@ -50,18 +50,10 @@ function monitor_seafile_thumbnail() {
     if [ $check_num -eq 0 ]; then
         log "Start $process_name"
         cd /opt/seafile/thumbnail-server/
-        if [[ "${SEAFILE_LOG_TO_STDOUT}" == "true" ]]; then
-            if [[ "${NON_ROOT}" == "true" ]]; then
-                su seafile -c "/usr/bin/python3 main.py &"
-            else
-                /usr/bin/python3 main.py &
-            fi
+        if [[ "${NON_ROOT}" == "true" ]]; then
+            su seafile -c "/usr/bin/python3 main.py &"
         else
-            if [[ "${NON_ROOT}" == "true" ]]; then
-                su seafile -c "/usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &"
-            else
-                /usr/bin/python3 main.py &>> /opt/seafile/logs/thumbnail-server.log &
-            fi
+            /usr/bin/python3 main.py &
         fi
         sleep 0.2
     fi

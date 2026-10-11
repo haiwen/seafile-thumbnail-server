@@ -133,3 +133,19 @@ REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 
 # config for multi storage
 ENABLE_MULTI_STORAGE = os.environ.get('SEAF_SERVER_STORAGE_TYPE', '') == 'multiple'
+
+# config for logging
+if os.getenv('SEAFILE_LOG_TO_STDOUT', 'false') != 'true':
+    UVICORN_LOG_CONFIG['handlers'] = {
+        'rotating': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'thumbnail-server.log'),
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,
+            'encoding': 'utf-8',
+            'formatter': 'default',
+        },
+    }
+    UVICORN_LOG_CONFIG['loggers']['uvicorn']['handlers'] = ['rotating']
+    UVICORN_LOG_CONFIG['loggers']['uvicorn.access']['handlers'] = ['rotating']
