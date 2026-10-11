@@ -1,0 +1,15 @@
+/opt/seafile/logs/thumbnail-server.log {
+        daily
+        missingok
+        rotate 7
+        # compress
+        # delaycompress
+        dateext
+        dateformat .%Y-%m-%d
+        notifempty
+        copytruncate
+        sharedscripts
+        postrotate
+                find /opt/seafile/logs/ -maxdepth 1 -name "thumbnail.log.*" -mtime +7 -exec rm -f {} \;
+        endscript
+}
