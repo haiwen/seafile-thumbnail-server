@@ -1,11 +1,11 @@
 requests==2.32.*
 pillow_heif==1.2.*
 pillow-avif-plugin==1.5.*
-psd-tools==1.14.*
+psd-tools==1.17.*
 uvicorn==0.41.*
 pillow==13.0.*
-pyjwt==2.11.*
+pyjwt==2.14.*
 SQLAlchemy==2.0.*
 pillow-heif==1.2.*
-cairosvg==2.8.*
+cairosvg==2.9.*
 playwright==1.58.0
