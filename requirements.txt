@@ -4,7 +4,7 @@ pillow-avif-plugin==1.5.*
 psd-tools==1.14.*
 uvicorn==0.41.*
 pillow==13.0.*
-pyjwt==2.11.*
+pyjwt==2.15.*
 SQLAlchemy==2.0.*
 pillow-heif==1.2.*
 cairosvg==2.8.*
