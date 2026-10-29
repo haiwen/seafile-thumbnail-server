@@ -426,7 +426,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
 
     `fp` can be a filename (string) or a file object.
     """
-    image = Image.open(fp)
+    image = Image.open(fp, formats=['JPEG', 'PNG', 'GIF', 'ICO', 'BMP', 'TIFF', 'WEBP', 'HEIF'])
 
     try:
         # check image memory cost size limit
