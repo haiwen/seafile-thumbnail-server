@@ -30,6 +30,9 @@ RUN apt-get install -y python3 python3-pip python3-setuptools python3-rados && \
 RUN curl -sL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 RUN apt-get install -y nodejs
 
+# Install the browsers outside of /root so they can also be used when NON_ROOT=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+
 RUN apt-get install -y fonts-wqy-microhei fonts-wqy-zenhei fonts-noto-cjk-extra fontconfig &&\
     pip3 install --no-cache-dir --ignore-installed playwright==1.58.0 && \
     python -m playwright install --with-deps && \
