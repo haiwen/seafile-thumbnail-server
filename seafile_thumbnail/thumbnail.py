@@ -398,8 +398,8 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             bytestring=svg_content,
             write_to=tmp_png_path,
             dpi=200,
-            output_width=size,
-            output_height=size
+            output_width=1024,
+            output_height=1024
         )
         # MEMORY FIX: delete svg_content after conversion
         del svg_content
@@ -426,7 +426,7 @@ def _create_thumbnail_common(fp, thumbnail_file, size):
 
     `fp` can be a filename (string) or a file object.
     """
-    image = Image.open(fp)
+    image = Image.open(fp, formats=['JPEG', 'PNG', 'GIF', 'ICO', 'BMP', 'TIFF', 'WEBP', 'HEIF'])
 
     try:
         # check image memory cost size limit
