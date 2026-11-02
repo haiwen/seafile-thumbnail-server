@@ -398,8 +398,8 @@ def create_svg_thumbnails(repo_id, file_id, path, size, thumbnail_file, file_siz
             bytestring=svg_content,
             write_to=tmp_png_path,
             dpi=200,
-            output_width=size,
-            output_height=size
+            output_width=1024,
+            output_height=1024
         )
         # MEMORY FIX: delete svg_content after conversion
         del svg_content
