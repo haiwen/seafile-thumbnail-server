@@ -42,7 +42,7 @@ RUN apt-get install -y nodejs
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
 RUN apt-get install -y fonts-wqy-microhei fonts-wqy-zenhei fonts-noto-cjk-extra fontconfig &&\
-    pip3 install --no-cache-dir --ignore-installed playwright==1.58.0 && \
+    pip3 install --no-cache-dir --ignore-installed playwright==1.65.* && \
     python -m playwright install --with-deps && \
     playwright install chromium
 
