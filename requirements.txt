@@ -1,8 +1,8 @@
 requests==2.32.*
-psd-tools==1.10.*
+psd-tools==1.26.*
 uvicorn==0.35.*
 pillow==13.0.*
-pyjwt==2.10.*
+pyjwt==2.15.*
 SQLAlchemy==2.0.*
-pillow-heif==1.0.*
-cairosvg==2.8.*
+pillow-heif==1.8.*
+cairosvg==2.9.*
